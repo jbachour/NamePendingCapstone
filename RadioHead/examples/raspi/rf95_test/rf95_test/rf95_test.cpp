@@ -12,7 +12,7 @@ void sig_handler(int sig);
 //Driver for mesh capability
 #include <RHMesh.h>
 
-//Max message length
+//Max message length 
 #define RH_MESH_MAX_MESSAGE_LEN 50
 
 //Pins used
@@ -34,20 +34,20 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHMesh manager(rf95, CLIENT_ADDRESS);
+RHMesh manager(rf95, SERVER_ADDRESS_1);
 
 //Flag for Ctrl-C
 int flag = 0;
 
 //indicates if it's the node's turn to transmit or not
-bool myturn = true;
+bool myturn = false; 
 
 // void scheduler (bool myturn)
 // {
 // //verify if im available
 
 // //verify if other nodes are available
-// myturn = true;
+// myturn = true; 
 // }
 
 //Main Function
@@ -66,7 +66,7 @@ if (gpioInitialise()<0) //pigpio library function that initiliazes gpio
   printf("CS-> GPIO %d\n", (uint8_t) RFM95_CS_PIN);
   printf("IRQ-> GPIO %d\n", (uint8_t) RFM95_IRQ_PIN);
 
-//Verify driver initialization
+//Verify driver initialization 
 if (!rf95.init())
   {
     printf( "\n\nRF95 Driver Failed to initialize.\n\n" );
@@ -110,7 +110,7 @@ if (myturn){
 
     //"TCP"
     Serial.println("Sending to...");
-    if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
+    if (manager.sendto(data, sizeof(data), CLIENT_ADDRESS))
     {
 
         printf("Inside send \n");
@@ -120,9 +120,8 @@ if (myturn){
       // if(manager.waitAvailableTimeout(5000)){
       //Acknowledgement
     rf95.waitPacketSent(1000);
-    printf("waited\n");
-    myturn=false;
-    rf95.setModeRx();
+   myturn=false;
+   rf95.setModeRx();
     // if (manager.recvfrom(buf, &len, &from)){
     //   //Display acknowledgement message and address of sender
     //   Serial.print("got reply from : 0x");
@@ -130,11 +129,11 @@ if (myturn){
     //   Serial.print(": ");
     //   Serial.println((char*)buf);
     //   myturn=false;
-    //    printf("Switching to server \n");
     // }
-    // //  else {
-    // //   Serial.println("No reply - Acknowledgement failed");
-    // //    }
+    // }
+    //  else {
+    //   Serial.println("No reply - Acknowledgement failed");
+    //    }
     }
     else 
     //Message could not be sent
@@ -151,8 +150,8 @@ else {
     uint8_t from;
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
-   // Serial.println("im available");
-   
+    //Serial.println("im available");
+    
     if(manager.recvfrom(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
@@ -172,10 +171,11 @@ else {
       // }
       myturn = true;
       //rf95.setModeTx();
-      rf95.waitAvailableTimeout(5000);
+rf95.waitAvailableTimeout(5000);
+
     }
-   //}
- 
+  // }
+  
 }
 
 }

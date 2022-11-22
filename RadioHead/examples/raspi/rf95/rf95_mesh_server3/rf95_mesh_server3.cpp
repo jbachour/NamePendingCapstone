@@ -38,7 +38,7 @@ void sig_handler(int sig);
 
 //Pin Definitions
 #define RFM95_CS_PIN 8
-#define RFM95_IRQ_PIN 4
+#define RFM95_IRQ_PIN 25
 #define RFM95_LED 4
 
 // In this small artifical network of 4 nodes,
@@ -73,6 +73,13 @@ int main (int argc, const char* argv[] )
 
   printf( "\nRPI rf95_mesh_server2 startup OK.\n" );
 
+#ifdef RFM95_LED
+  gpioSetMode(RFM95_LED, PI_OUTPUT);
+  printf("\nINFO: LED on GPIO %d\n", (uint8_t) RFM95_LED);
+  gpioWrite(RFM95_LED, PI_ON);
+  gpioDelay(500000);
+  gpioWrite(RFM95_LED, PI_OFF);
+#endif
 
   if (!manager.init())
   {
@@ -103,14 +110,20 @@ int main (int argc, const char* argv[] )
     uint8_t from;
     if (manager.recvfromAck(buf, &len, &from))
     {
+#ifdef RFM95_LED
+      gpioWrite(RFM95_LED, PI_ON);
+#endif
       Serial.print("got request from : 0x");
       Serial.print(from, HEX);
       Serial.print(": ");
       Serial.println((char*)buf);
-    
+
       // Send a reply back to the originator client
       if (manager.sendtoWait(data, sizeof(data), from) != RH_ROUTER_ERROR_NONE)
         Serial.println("sendtoWait failed");
+#ifdef RFM95_LED
+      gpioWrite(RFM95_LED, PI_OFF);
+#endif
     }
   }
 

@@ -68,11 +68,10 @@ bool RHReliableDatagram::sendtoWait(uint8_t* buf, uint8_t len, uint8_t address)
             headerFlagsToSet = RH_FLAGS_RETRY;
         }
         setHeaderFlags(headerFlagsToSet, headerFlagsToClear);
-	//printf("sending\n");
+
 	sendto(buf, len, address);
-	//printf("sent\n");
 	waitPacketSent();
-	//printf("waited\n");
+
 	// Never wait for ACKS to broadcasts:
 	if (address == RH_BROADCAST_ADDRESS)
 	    return true;
@@ -87,7 +86,6 @@ bool RHReliableDatagram::sendtoWait(uint8_t* buf, uint8_t len, uint8_t address)
 #if (RH_PLATFORM == RH_PLATFORM_RASPI) // use standard library random(), bugs in random(min, max)
 	uint16_t timeout = _timeout + (_timeout * (random() & 0xFF) / 256);
 	//uint16_t timeout = 3000;
-	//printf("timeout %d\n", timeout);
 #else
 	uint16_t timeout = _timeout + (_timeout * random(0, 256) / 256);
 	//uint16_t timeout = 1000;
@@ -95,10 +93,11 @@ bool RHReliableDatagram::sendtoWait(uint8_t* buf, uint8_t len, uint8_t address)
 	int32_t timeLeft;
         while ((timeLeft = timeout - (millis() - thisSendTime)) > 0)
 	{
-	    if (waitPacketSent(timeLeft))
+		//printf("time left %d, retires %d\n", timeLeft, retries);
+	    if (waitAvailableTimeout(timeLeft))
 	    {
-			//printf("timeleft over\n");
 		uint8_t from, to, id, flags;
+		//printf("time left over\n");
 		if (recvfrom(0, 0, &from, &to, &id, &flags)) // Discards the message
 		{
 		    // Now have a message: is it our ACK?
@@ -114,8 +113,9 @@ bool RHReliableDatagram::sendtoWait(uint8_t* buf, uint8_t len, uint8_t address)
 		    else if (   !(flags & RH_FLAGS_ACK)
 				&& (id == _seenIds[from]))
 		    {
-			// This is a request we have already received. ACK it again
 			delay(10000);
+			printf("send ack");
+			// This is a request we have already received. ACK it again
 			acknowledge(id, from);
 		    }
 		    // Else discard it
@@ -148,6 +148,7 @@ bool RHReliableDatagram::recvfromAck(uint8_t* buf, uint8_t* len, uint8_t* from, 
 	    if (_to ==_thisAddress)
 	    {
 			delay(10000);
+			Serial.println("rcv ack to be sent");
 	        // Its for this node and
 		// Its not a broadcast, so ACK it
 		// Acknowledge message with ACK set in flags and ID set to received ID
@@ -179,7 +180,6 @@ bool RHReliableDatagram::recvfromAckTimeout(uint8_t* buf, uint8_t* len, uint16_t
 {
     unsigned long starttime = millis();
     int32_t timeLeft;
-	printf("recvtimeout");
     while ((timeLeft = timeout - (millis() - starttime)) > 0)
     {
 	if (waitAvailableTimeout(timeLeft))

@@ -77,6 +77,13 @@ int main (int argc, const char* argv[] )
   printf( "\nRPI GPIO settings:\n" );
   printf("CS-> GPIO %d\n", (uint8_t) RFM95_CS_PIN);
   printf("IRQ-> GPIO %d\n", (uint8_t) RFM95_IRQ_PIN);
+#ifdef RFM95_LED
+  gpioSetMode(RFM95_LED, PI_OUTPUT);
+  printf("\nINFO: LED on GPIO %d\n", (uint8_t) RFM95_LED);
+  gpioWrite(RFM95_LED, PI_ON);
+  gpioDelay(500000);
+  gpioWrite(RFM95_LED, PI_OFF);
+#endif
 
   if (!rf95.init())
   {
@@ -108,22 +115,28 @@ int main (int argc, const char* argv[] )
 #endif
     uint8_t data[] = "Hello World!";
     rf95.send(data, sizeof(data));
-    rf95.waitPacketSent(2000);
 
+    rf95.waitPacketSent(10000);
+#ifdef RFM95_LED
+    gpioWrite(RFM95_LED, PI_OFF);
+#endif
     // Now wait for a reply
     uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
     uint8_t len = sizeof(buf);
-    Serial.println("wait for reply");
-    if (rf95.waitAvailableTimeout(2000))
+
+    if (rf95.waitAvailableTimeout(5000))
     {
       // Should be a reply message for us now
-      //Serial.println("timout if");
       if (rf95.recv(buf, &len))
       {
-
+#ifdef RFM95_LED
+        gpioWrite(RFM95_LED, PI_ON);
+#endif
         Serial.print("got reply: ");
         Serial.println((char*)buf);
-
+#ifdef RFM95_LED
+        gpioWrite(RFM95_LED, PI_OFF);
+#endif
       }
       else
       {

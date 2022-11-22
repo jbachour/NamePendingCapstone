@@ -30,10 +30,10 @@
 #define RH_ENABLE_EXPLICIT_RETRY_DEDUP 0
 
 /// the default retry timeout in milliseconds
-#define RH_DEFAULT_TIMEOUT 200
+#define RH_DEFAULT_TIMEOUT 20
 
 /// The default number of retries
-#define RH_DEFAULT_RETRIES 10
+#define RH_DEFAULT_RETRIES 3
 
 /////////////////////////////////////////////////////////////////////
 /// \class RHReliableDatagram RHReliableDatagram.h <RHReliableDatagram.h>

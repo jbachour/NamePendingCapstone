@@ -1671,7 +1671,6 @@ these examples and explanations and extend them to suit your needs.
   #include <RHutil/RasPi.h>
  #endif
  #include <string.h>
- //#include <help_functions.h>
  //Define SS for CS0 or pin 24
  #define SS 8
 

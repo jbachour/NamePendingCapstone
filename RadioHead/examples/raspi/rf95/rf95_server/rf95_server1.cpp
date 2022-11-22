@@ -40,6 +40,7 @@ void sig_handler(int sig);
 //Pin Definitions
 #define RFM95_CS_PIN 8
 #define RFM95_IRQ_PIN 4
+#define RFM95_LED 25
 #endif
 
 //Client and Server Addresses
@@ -74,6 +75,13 @@ int main (int argc, const char* argv[] )
   printf( "\nRPI GPIO settings:\n" );
   printf("CS-> GPIO %d\n", (uint8_t) RFM95_CS_PIN);
   printf("IRQ-> GPIO %d\n", (uint8_t) RFM95_IRQ_PIN);
+#ifdef RFM95_LED
+  gpioSetMode(RFM95_LED, PI_OUTPUT);
+  printf("LED-> GPIO %d\n", (uint8_t) RFM95_LED);
+  gpioWrite(RFM95_LED, PI_ON);
+  gpioDelay(500000);
+  gpioWrite(RFM95_LED, PI_OFF);
+#endif
 
   if (!rf95.init())
   {
@@ -87,7 +95,7 @@ int main (int argc, const char* argv[] )
   printf("Power= %d\n", (uint8_t) RFM95_TXPOWER);
   printf("Client Address= %d\n", CLIENT_ADDRESS);
   printf("Server(This) Address= %d\n", SERVER_ADDRESS);
-  rf95.setTxPower(RFM95_TXPOWER, false);
+  rf95.setTxPower(RFM95_TXPOWER, true);
   rf95.setFrequency(RFM95_FREQUENCY);
   rf95.setThisAddress(SERVER_ADDRESS);
   rf95.setModemConfig(RH_RF95::Bw125Cr48Sf4096);
@@ -98,11 +106,15 @@ int main (int argc, const char* argv[] )
   {
     if (rf95.available())
     {
+      Serial.println("im av");
       // Should be a message for us now
       uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
       uint8_t len = sizeof(buf);
       if (rf95.recv(buf, &len))
       {
+#ifdef RFM95_LED
+        gpioWrite(RFM95_LED, PI_ON);
+#endif
 //      RF95::printBuffer("request: ", buf, len);
         Serial.print("got request: ");
         Serial.println((char*)buf);
@@ -114,7 +126,9 @@ int main (int argc, const char* argv[] )
         rf95.send(data, sizeof(data));
         rf95.waitPacketSent();
         Serial.println("Sent a reply");
-
+#ifdef RFM95_LED
+        gpioWrite(RFM95_LED, PI_OFF);
+#endif
       }
       else
       {

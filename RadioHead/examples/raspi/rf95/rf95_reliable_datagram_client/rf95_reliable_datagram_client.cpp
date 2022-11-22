@@ -32,7 +32,8 @@ void sig_handler(int sig);
 
 //Pin Definitions
 #define RFM95_CS_PIN 8
-#define RFM95_IRQ_PIN 4
+#define RFM95_IRQ_PIN 7
+#define RFM95_LED 4
 
 //Client and Server Addresses
 #define CLIENT_ADDRESS 1
@@ -66,7 +67,13 @@ int main (int argc, const char* argv[] )
   printf( "\nRPI GPIO settings:\n" );
   printf("CS-> GPIO %d\n", (uint8_t) RFM95_CS_PIN);
   printf("IRQ-> GPIO %d\n", (uint8_t) RFM95_IRQ_PIN);
-
+#ifdef RFM95_LED
+  gpioSetMode(RFM95_LED, PI_OUTPUT);
+  printf("\nINFO: LED on GPIO %d\n", (uint8_t) RFM95_LED);
+  gpioWrite(RFM95_LED, PI_ON);
+  gpioDelay(500000);
+  gpioWrite(RFM95_LED, PI_OFF);
+#endif
 
   if (!rf95.init())
   {
@@ -80,14 +87,14 @@ int main (int argc, const char* argv[] )
   printf("Power= %d\n", (uint8_t) RFM95_TXPOWER);
   printf("Client(This) Address= %d\n", CLIENT_ADDRESS);
   printf("Server Address= %d\n", SERVER_ADDRESS);
-  rf95.setTxPower(RFM95_TXPOWER, true);
+  rf95.setTxPower(RFM95_TXPOWER, false);
   rf95.setFrequency(RFM95_FREQUENCY);
   rf95.setThisAddress(CLIENT_ADDRESS);
   rf95.setHeaderFrom(CLIENT_ADDRESS);
   rf95.setHeaderTo(SERVER_ADDRESS);
   /* End Manager/Driver settings code */
 
-  // /* Begin Datagram Client Code */
+  /* Begin Datagram Client Code */
   uint8_t data[] = "Hello World!";
   // Dont put this on the stack:
   uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
@@ -96,12 +103,11 @@ int main (int argc, const char* argv[] )
   {
     Serial.println("Sending to rf95_reliable_datagram_server");
     // Send a message to manager_server
-
-/* Begin Datagram Client Code */
- 
+#ifdef RFM95_LED
+    gpioWrite(RFM95_LED, PI_ON);
+#endif
     if (manager.sendtoWait(data, sizeof(data), SERVER_ADDRESS))
     {
-      printf("sent and waiting for reply");
       // Now wait for a reply from the server
       uint8_t len = sizeof(buf);
       uint8_t from;

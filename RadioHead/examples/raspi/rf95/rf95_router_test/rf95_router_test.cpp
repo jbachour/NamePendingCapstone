@@ -36,8 +36,8 @@ uint8_t data[] = "Hello World!";
 //uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
 
 //Pin Definitions
-#define RFM95_CS_PIN 8
-#define RFM95_IRQ_PIN 25
+#define RFM95_CS_PIN 24
+#define RFM95_IRQ_PIN 7
 #define RFM95_LED 4
 
 #define CLIENT_ADDRESS 1

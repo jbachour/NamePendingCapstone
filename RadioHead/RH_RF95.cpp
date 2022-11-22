@@ -149,6 +149,7 @@ bool RH_RF95::init()
 void RH_RF95::handleInterrupt()
 {
     RH_MUTEX_LOCK(lock); // Multithreading support
+    
     // we need the RF95 IRQ to be level triggered, or we ……have slim chance of missing events
     // https://github.com/geeksville/Meshtastic-esp32/commit/78470ed3f59f5c84fbd1325bcff1fd95b2b20183
 
@@ -172,8 +173,7 @@ void RH_RF95::handleInterrupt()
     // kevinh: turn this off until root cause is known, because it can cause missed interrupts!
     // spiWrite(RH_RF95_REG_12_IRQ_FLAGS, 0xff); // Clear all IRQ flags
     spiWrite(RH_RF95_REG_12_IRQ_FLAGS, 0xff); // Clear all IRQ flags
-    //printf("We have received a message5\n");
-
+Serial.println("sent messga");
     // error if:
     // timeout
     // bad CRC
@@ -186,8 +186,6 @@ void RH_RF95::handleInterrupt()
 //	Serial.println("E");
 	_rxBad++;
         clearRxBuf();
-            //printf("We have received a message6\n");
-
     }
     // It is possible to get RX_DONE and CRC_ERROR and VALID_HEADER all at once
     // so this must be an else
@@ -196,7 +194,6 @@ void RH_RF95::handleInterrupt()
 	// Packet received, no CRC error
 //	Serial.println("R");
 	// Have received a packet
-        //printf("We have received a message7\n");
 	uint8_t len = spiRead(RH_RF95_REG_13_RX_NB_BYTES);
 
 	// Reset the fifo read ptr to the beginning of the packet
@@ -223,10 +220,8 @@ void RH_RF95::handleInterrupt()
 	    _lastRssi -= 164;
 	    
 	// We have received a message.
-    printf("We have received a message1\n");
 	validateRxBuf(); 
 	if (_rxBufValid)
-        printf("We have received a message\n");
 	    setModeIdle(); // Got one 
     }
     else if (_mode == RHModeTx && irq_flags & RH_RF95_TX_DONE)
@@ -282,6 +277,7 @@ void RH_RF95::validateRxBuf()
     _rxHeaderFrom  = _buf[1];
     _rxHeaderId    = _buf[2];
     _rxHeaderFlags = _buf[3];
+    
     if (_promiscuous ||
 	_rxHeaderTo == _thisAddress ||
 	_rxHeaderTo == RH_BROADCAST_ADDRESS)
@@ -296,15 +292,13 @@ bool RH_RF95::available()
     RH_MUTEX_LOCK(lock); // Multithreading support
     if (_mode == RHModeTx)
     {
-        //printf("mode %d\n", _mode);
-        //printf("modetx %d\n", RHModeTx);
+    
     	RH_MUTEX_UNLOCK(lock);
 	return false;
     }
-    //Serial.println("true");
     setModeRx();
-    //printf("bufvalid %d\n", _rxBufValid);
     RH_MUTEX_UNLOCK(lock);
+    //printf("normal %d\n", _rxBufValid);
     return _rxBufValid; // Will be set by the interrupt handler when a good message is received
 }
 
@@ -319,7 +313,7 @@ void RH_RF95::clearRxBuf()
 bool RH_RF95::recv(uint8_t* buf, uint8_t* len)
 {
     if (!available())
-	    return false;
+	return false;
     RH_MUTEX_LOCK(lock); // Multithread support
     if (buf && len)
     {
@@ -340,14 +334,12 @@ bool RH_RF95::send(const uint8_t* data, uint8_t len)
     if (len > RH_RF95_MAX_MESSAGE_LEN)
 	return false;
 
-    //waitPacketSent(); // Make sure we dont interrupt an outgoing message
-    waitPacketSent(5000);
+    waitPacketSent(5000); // Make sure we dont interrupt an outgoing message
     setModeIdle();
 
-    if (!waitCAD()) {
-     Serial.println("return false");
+    if (!waitCAD()) 
 	return false;  // Check channel activity
-    }
+
     // Position at the beginning of the FIFO
     spiWrite(RH_RF95_REG_0D_FIFO_ADDR_PTR, 0);
     // The headers
@@ -362,7 +354,7 @@ bool RH_RF95::send(const uint8_t* data, uint8_t len)
     RH_MUTEX_LOCK(lock); // Multithreading support
     setModeTx(); // Start the transmitter
     RH_MUTEX_UNLOCK(lock);
-    Serial.println("send completed");
+    printf("send complete\n");
     // when Tx is done, interruptHandler will fire and radio mode will return to STANDBY
     return true;
 }
@@ -376,7 +368,7 @@ bool RH_RF95::printRegisters()
     for (i = 0; i < sizeof(registers); i++)
     {
 	Serial.print(registers[i], HEX);
-    Serial.print(": ");
+	Serial.print(": ");
 	Serial.println(spiRead(registers[i]), HEX);
     }
 #endif

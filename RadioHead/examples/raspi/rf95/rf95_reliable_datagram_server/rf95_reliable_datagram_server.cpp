@@ -33,6 +33,7 @@ void sig_handler(int sig);
 //Pin Definitions
 #define RFM95_CS_PIN 8
 #define RFM95_IRQ_PIN 4
+#define RFM95_LED 25
 
 //Client and Server Addresses
 #define CLIENT_ADDRESS 1
@@ -66,6 +67,13 @@ int main (int argc, const char* argv[] )
   printf( "\nRPI GPIO settings:\n" );
   printf("CS-> GPIO %d\n", (uint8_t) RFM95_CS_PIN);
   printf("IRQ-> GPIO %d\n", (uint8_t) RFM95_IRQ_PIN);
+#ifdef RFM95_LED
+  gpioSetMode(RFM95_LED, PI_OUTPUT);
+  printf("\nINFO: LED on GPIO %d\n", (uint8_t) RFM95_LED);
+  gpioWrite(RFM95_LED, PI_ON);
+  gpioDelay(500000);
+  gpioWrite(RFM95_LED, PI_OFF);
+#endif
 
   if (!rf95.init())
   {
@@ -79,7 +87,7 @@ int main (int argc, const char* argv[] )
   printf("Power= %d\n", (uint8_t) RFM95_TXPOWER);
   printf("Client Address= %d\n", CLIENT_ADDRESS);
   printf("Server(This) Address= %d\n", SERVER_ADDRESS);
-  rf95.setTxPower(RFM95_TXPOWER, false);
+  rf95.setTxPower(RFM95_TXPOWER, true);
   rf95.setFrequency(RFM95_FREQUENCY);
   rf95.setThisAddress(SERVER_ADDRESS);
   rf95.setHeaderFrom(SERVER_ADDRESS);
@@ -97,17 +105,24 @@ int main (int argc, const char* argv[] )
       // Wait for a message addressed to us from the client
       uint8_t len = sizeof(buf);
       uint8_t from;
+
       if (manager.recvfromAck(buf, &len, &from))
       {
+#ifdef RFM95_LED
+        gpioWrite(RFM95_LED, PI_ON);
+#endif
         Serial.print("got request from : 0x");
         Serial.print(from, HEX);
         Serial.print(": ");
         Serial.println((char*)buf);
+        delay(10000);
 
         // Send a reply back to the originator client
         if (!manager.sendtoWait(data, sizeof(data), from))
           Serial.println("sendtoWait failed");
-
+#ifdef RFM95_LED
+        gpioWrite(RFM95_LED, PI_OFF);
+#endif
       }
     }
   }

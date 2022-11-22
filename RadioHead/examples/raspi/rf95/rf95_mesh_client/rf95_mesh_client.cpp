@@ -39,7 +39,7 @@ void sig_handler(int sig);
 //Pin Definitions
 #define RFM95_CS_PIN 8
 #define RFM95_IRQ_PIN 25
-#define RFM95_LED 4
+// #define RFM95_LED 4
 
 // In this small artifical network of 4 nodes,
 #define CLIENT_ADDRESS 1
@@ -73,13 +73,13 @@ int main (int argc, const char* argv[] )
 
   printf( "\nRPI rf95_mesh_client startup OK.\n" );
 
-#ifdef RFM95_LED
-  gpioSetMode(RFM95_LED, PI_OUTPUT);
-  printf("\nINFO: LED on GPIO %d\n", (uint8_t) RFM95_LED);
-  gpioWrite(RFM95_LED, PI_ON);
-  gpioDelay(500000);
-  gpioWrite(RFM95_LED, PI_OFF);
-#endif
+// #ifdef RFM95_LED
+//   gpioSetMode(RFM95_LED, PI_OUTPUT);
+//   printf("\nINFO: LED on GPIO %d\n", (uint8_t) RFM95_LED);
+//   gpioWrite(RFM95_LED, PI_ON);
+//   gpioDelay(500000);
+//   gpioWrite(RFM95_LED, PI_OFF);
+// #endif
 
   if (!manager.init())
   {
@@ -108,13 +108,13 @@ int main (int argc, const char* argv[] )
   while(!flag)
   {
     Serial.println("Sending to manager_mesh_server3");
-#ifdef RFM95_LED
-    gpioWrite(RFM95_LED, PI_ON);
-#endif
+// #ifdef RFM95_LED
+//     gpioWrite(RFM95_LED, PI_ON);
+// #endif
 
     // Send a message to a rf95_mesh_server
     // A route to the destination will be automatically discovered.
-    if (manager.sendtoWait(data, sizeof(data), SERVER3_ADDRESS) == RH_ROUTER_ERROR_NONE)
+    if (manager.sendtoWait(data, sizeof(data), SERVER1_ADDRESS) == RH_ROUTER_ERROR_NONE)
     {
       // It has been reliably delivered to the next node.
       // Now wait for a reply from the ultimate server
@@ -134,9 +134,9 @@ int main (int argc, const char* argv[] )
     }
     else
       Serial.println("sendtoWait failed. Are the intermediate mesh servers running?");
-#ifdef RFM95_LED
-    gpioWrite(RFM95_LED, PI_OFF);
-#endif
+// #ifdef RFM95_LED
+//     gpioWrite(RFM95_LED, PI_OFF);
+// #endif
     gpioDelay(400000);
   }
   printf( "\nrf95_mesh_client Tester Ending\n" );
