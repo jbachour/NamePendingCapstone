@@ -98,42 +98,45 @@ uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
 while(!flag)
 {
-// Serial.println("Sending message");
-
 /*
 If it's my turn, I'm transmitting (client mode), else, I'm listening for packets (server mode)
 */
-if (myturn){
+if (myturn)
+{
   //Client mode
 
-
-    //"TCP"
-    Serial.println("Sending to...");
-    if(manager.sendto(data, sizeof(data),SERVER_ADDRESS_1))
-    {
-      printf("Inside send \n");
-      //Size of acknowledgement
-      uint8_t len = sizeof(buf);
-      uint8_t from;
-      rf95.waitPacketSent(1000);
-      printf("waited\n");
-      myturn=false;
-      rf95.setModeRx();
+  //"TCP"
+  Serial.println("Sending to...");
+  if(manager.sendto(data, sizeof(data),SERVER_ADDRESS_1))
+  {
+    printf("Inside send \n");
+    
+    uint8_t len = sizeof(buf); //Size of message to be sent
+    uint8_t from;
+    rf95.waitPacketSent(1000);
+    printf("waited\n");
+    myturn=false; //After sending the message switch to server mode
+    rf95.setModeRx(); //sets node's mode to Receiving (server)
   
-    }
-    else 
-    //Message could not be sent
-    {
-    Serial.println("sendto failed");
-    }
+  }
+  else 
+  //Message could not be sent
+  {
+    Serial.println("Send message failed");
+  }
 
 }
-else {
-    //Server mode
+else 
+{
+  //Server mode
+  uint8_t len = sizeof(buf); //Size of message being received
+  uint8_t from;
+  if( from == RH_BROADCAST_ADDRESS)
+  {
 
-    //Size of message being received
-    uint8_t len = sizeof(buf);
-    uint8_t from;
+  }
+  else
+  {
     if(manager.recvfrom(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
@@ -144,9 +147,11 @@ else {
       myturn = true;
       rf95.waitAvailableTimeout(5000);
 
-      //Broadcast
+      //Broadcast message received
+      manager.sendto(buf, len, RH_BROADCAST_ADDRESS);
 
     }
+  }
    
  
 }
