@@ -109,20 +109,16 @@ if (myturn){
 
     //"TCP"
     Serial.println("Sending to...");
-    // if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
-    if(manager.sendtoWait(data, sizeof(data),SERVER_ADDRESS_1))
+    if(manager.sendto(data, sizeof(data),SERVER_ADDRESS_1))
     {
-
-        printf("Inside send \n");
-          //Size of acknowledgement
-          uint8_t len = sizeof(buf);
-          uint8_t from;
-      // if(manager.waitAvailableTimeout(5000)){
-      //Acknowledgement
-    rf95.waitPacketSent(1000);
-    printf("waited\n");
-    myturn=false;
-    rf95.setModeRx();
+      printf("Inside send \n");
+      //Size of acknowledgement
+      uint8_t len = sizeof(buf);
+      uint8_t from;
+      rf95.waitPacketSent(1000);
+      printf("waited\n");
+      myturn=false;
+      rf95.setModeRx();
   
     }
     else 
@@ -138,7 +134,6 @@ else {
     //Size of message being received
     uint8_t len = sizeof(buf);
     uint8_t from;
-
     if(manager.recvfrom(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
@@ -148,7 +143,7 @@ else {
 
       myturn = true;
       rf95.waitAvailableTimeout(5000);
-      
+
       //Broadcast
 
     }
