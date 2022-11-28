@@ -113,7 +113,8 @@ while(!flag)
 If it's my turn, I'm transmitting (client mode), else, I'm listening for packets (server mode)
 */
 if (myturn){
-  last_transmission_time = millis();
+
+  last_transmission_time = timeOfDay();
   //Client mode
     //"UDP BROADCAST"
 
@@ -127,7 +128,7 @@ if (myturn){
           uint8_t len = sizeof(buf);
           uint8_t from;
           while (millis() - last_transmission_time < TURN_TIMER) {
-          if (!manager.recvfrom(buf, &len, &from) && (millis() - last_transmission_time > 4000)) {
+          if (!manager.recvfrom(buf, &len, &from) && (millis(last_transmission_time) - last_transmission_time > 4000)) {
             manager.sendto(data, sizeof(data), CLIENT_ADDRESS)
           }
       // if(manager.waitAvailableTimeout(5000)){
@@ -135,7 +136,7 @@ if (myturn){
     //rf95.waitPacketSent(1000);
           }
    myturn=false;
-   last_transmission_time = millis();
+   last_transmission_time = timeOfDay();
    rf95.setModeRx();
     // if (manager.recvfrom(buf, &len, &from)){
     //   //Display acknowledgement message and address of sender
@@ -155,7 +156,6 @@ if (myturn){
     {
     Serial.println("sendto failed");
     }
-    }
 
 }
 else {
@@ -167,7 +167,7 @@ else {
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
     //Serial.println("im available");
-    while (millis() - last_transmission_time < TURN_TIMER * num_nodes) 
+    while (millis(last_transmission_time) - last_transmission_time < TURN_TIMER * num_nodes) 
     {
     if(manager.recvfrom(buf, &len, &from))
     {
