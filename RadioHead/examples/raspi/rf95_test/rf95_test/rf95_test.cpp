@@ -40,7 +40,7 @@ RHMesh manager(rf95, CLIENT_ADDRESS);
 int flag = 0;
 
 //indicates if it's the node's turn to transmit or not
-bool myturn = true;
+bool myturn = false;
 
 // void scheduler (bool myturn)
 // {
@@ -123,18 +123,7 @@ if (myturn){
     printf("waited\n");
     myturn=false;
     rf95.setModeRx();
-    // if (manager.recvfrom(buf, &len, &from)){
-    //   //Display acknowledgement message and address of sender
-    //   Serial.print("got reply from : 0x");
-    //   Serial.print(from, HEX);
-    //   Serial.print(": ");
-    //   Serial.println((char*)buf);
-    //   myturn=false;
-    //    printf("Switching to server \n");
-    // }
-    // //  else {
-    // //   Serial.println("No reply - Acknowledgement failed");
-    // //    }
+  
     }
     else 
     //Message could not be sent
@@ -145,39 +134,25 @@ if (myturn){
 }
 else {
     //Server mode
-//erial.println("im now a recv");
+
     //Size of message being received
     uint8_t len = sizeof(buf);
     uint8_t from;
-    // if (manager.recvfrom(buf, &len, &from))
-   //if(manager.available()){
-   // Serial.println("im available");
-   
-    //if(manager.recvfrom(buf, &len, &from))
-    if(manager.recvfromAck(buf, &len, &from))
+
+    if(manager.recvfrom(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
       Serial.print(from, HEX);
       Serial.print(": ");
       Serial.println((char*)buf);
 
-       //Store data here
-      // Send a reply back to the originator client
-      // uint8_t data[] = "My acknowledgement";
-      // if (manager.sendto(data, sizeof(data), from)){
-      //   Serial.println("sendt");
-      //   rf95.waitPacketSent(5000);
-      // }
-      // else{
-      //   Serial.println("sendtoWait failed");
-      // }
       myturn = true;
-      //rf95.setModeTx();
       rf95.waitAvailableTimeout(5000);
-      //manager.sendto
+      
+      //Broadcast
 
     }
-   //}
+   
  
 }
 
