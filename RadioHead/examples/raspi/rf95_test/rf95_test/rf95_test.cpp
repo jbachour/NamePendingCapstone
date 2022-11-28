@@ -42,6 +42,12 @@ int flag = 0;
 //indicates if it's the node's turn to transmit or not
 bool myturn = false; 
 
+unsigned long last_transmission_time;
+unsigned long TURN_TIMER = 15000;
+map<int, bool> NODE_NETWORK_MAP;
+int num_nodes;
+int networkSessionKey;
+
 // void scheduler (bool myturn)
 // {
 // //verify if im available
@@ -95,6 +101,9 @@ uint8_t data[] = "Hello World!";
 uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 /* End Placeholder Message */
 
+//setup
+num_nodes = 2;
+
 
 while(!flag)
 {
@@ -104,8 +113,8 @@ while(!flag)
 If it's my turn, I'm transmitting (client mode), else, I'm listening for packets (server mode)
 */
 if (myturn){
+  last_transmission_time = millis();
   //Client mode
-
     //"UDP BROADCAST"
 
     //"TCP"
@@ -117,10 +126,16 @@ if (myturn){
           //Size of acknowledgement
           uint8_t len = sizeof(buf);
           uint8_t from;
+          while (millis() - last_transmission_time < TURN_TIMER) {
+          if (!manager.recvfrom(buf, &len, &from) && (millis() - last_transmission_time > 4000)) {
+            manager.sendto(data, sizeof(data), CLIENT_ADDRESS)
+          }
       // if(manager.waitAvailableTimeout(5000)){
       //Acknowledgement
-    rf95.waitPacketSent(1000);
+    //rf95.waitPacketSent(1000);
+          }
    myturn=false;
+   last_transmission_time = millis();
    rf95.setModeRx();
     // if (manager.recvfrom(buf, &len, &from)){
     //   //Display acknowledgement message and address of sender
@@ -140,6 +155,7 @@ if (myturn){
     {
     Serial.println("sendto failed");
     }
+    }
 
 }
 else {
@@ -151,7 +167,8 @@ else {
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
     //Serial.println("im available");
-    
+    while (millis() - last_transmission_time < TURN_TIMER * num_nodes) 
+    {
     if(manager.recvfrom(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
@@ -171,8 +188,9 @@ else {
       // }
       myturn = true;
       //rf95.setModeTx();
-rf95.waitAvailableTimeout(5000);
+//rf95.waitAvailableTimeout(5000);
 
+    }
     }
   // }
   
