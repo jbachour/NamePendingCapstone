@@ -106,11 +106,11 @@ If it's my turn, I'm transmitting (client mode), else, I'm listening for packets
 if (myturn){
   //Client mode
 
-    //"UDP BROADCAST"
 
     //"TCP"
     Serial.println("Sending to...");
-    if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
+    // if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
+    if(manager.sendtoWait(data, sizeof(data),SERVER_ADDRESS_1))
     {
 
         printf("Inside send \n");
@@ -153,7 +153,8 @@ else {
    //if(manager.available()){
    // Serial.println("im available");
    
-    if(manager.recvfrom(buf, &len, &from))
+    //if(manager.recvfrom(buf, &len, &from))
+    if(manager.recvfromAck(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
       Serial.print(from, HEX);
@@ -173,6 +174,8 @@ else {
       myturn = true;
       //rf95.setModeTx();
       rf95.waitAvailableTimeout(5000);
+      //manager.sendto
+
     }
    //}
  
