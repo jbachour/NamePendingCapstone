@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#include <map>
 
 //Function Definitions
 void sig_handler(int sig);
@@ -44,7 +45,7 @@ bool myturn = false;
 
 unsigned long last_transmission_time;
 unsigned long TURN_TIMER = 15000;
-map<int, bool> NODE_NETWORK_MAP;
+std::map<int, bool> NODE_NETWORK_MAP;
 int num_nodes;
 int networkSessionKey;
 
@@ -55,6 +56,27 @@ int networkSessionKey;
 // //verify if other nodes are available
 // myturn = true; 
 // }
+
+unsigned long mymillis(unsigned long time) {
+  //Declare a variable to store current time
+  struct timeval RHCurrentTime;
+  //Get current time
+  gettimeofday(&RHCurrentTime,NULL);
+  //Calculate the difference between our start time and the end time
+  unsigned long difference = (RHCurrentTime.tv_sec * 1000 - time);
+  difference += (RHCurrentTime.tv_usec / 1000 - time);
+  //Return the calculated value
+  return difference;
+}
+
+unsigned long timeOfDay() {
+  //Declare a variable to store current time
+  struct timeval RHCurrentTime;
+  //Get current time
+  gettimeofday(&RHCurrentTime,NULL);
+  unsigned long time = RHCurrentTime.tv_usec / 1000;
+  return time;
+}
 
 //Main Function
 int main (int argc, const char* argv[] )
@@ -127,9 +149,9 @@ if (myturn){
           //Size of acknowledgement
           uint8_t len = sizeof(buf);
           uint8_t from;
-          while (millis() - last_transmission_time < TURN_TIMER) {
-          if (!manager.recvfrom(buf, &len, &from) && (millis(last_transmission_time) - last_transmission_time > 4000)) {
-            manager.sendto(data, sizeof(data), CLIENT_ADDRESS)
+          while (mymillis(last_transmission_time) - last_transmission_time < TURN_TIMER) {
+          if (!manager.recvfrom(buf, &len, &from) && (mymillis(last_transmission_time) - last_transmission_time > 4000)) {
+            manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
           }
       // if(manager.waitAvailableTimeout(5000)){
       //Acknowledgement
@@ -167,7 +189,7 @@ else {
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
     //Serial.println("im available");
-    while (millis(last_transmission_time) - last_transmission_time < TURN_TIMER * num_nodes) 
+    while (mymillis(last_transmission_time) - last_transmission_time < TURN_TIMER * num_nodes) 
     {
     if(manager.recvfrom(buf, &len, &from))
     {

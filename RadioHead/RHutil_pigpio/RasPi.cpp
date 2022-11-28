@@ -164,27 +164,6 @@ unsigned long millis()
   return difference;
 }
 
-unsigned long millis(unsigned long time) {
-  //Declare a variable to store current time
-  struct timeval RHCurrentTime;
-  //Get current time
-  gettimeofday(&RHCurrentTime,NULL);
-  //Calculate the difference between our start time and the end time
-  unsigned long difference = (RHCurrentTime.tv_sec * 1000 - time);
-  difference += (RHCurrentTime.tv_usec / 1000 - time);
-  //Return the calculated value
-  return difference;
-}
-
-unsigned long timeOfDay() {
-  //Declare a variable to store current time
-  struct timeval RHCurrentTime;
-  //Get current time
-  gettimeofday(&RHCurrentTime,NULL);
-  unsigned long time = RHCurrentTime.tv_usec / 1000;
-  return time;
-}
-
 void delay (unsigned long ms)
 {
   //Implement Delay function
