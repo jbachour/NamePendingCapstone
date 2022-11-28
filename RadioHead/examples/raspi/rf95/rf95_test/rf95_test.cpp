@@ -68,16 +68,16 @@ if (gpioInitialise()<0) //pigpio library function that initiliazes gpio
 
 //Verify driver initialization
 if (!rf95.init())
-  {
-    printf( "\n\nRF95 Driver Failed to initialize.\n\n" );
-    return 1;
-  }
+{
+  printf( "\n\nRF95 Driver Failed to initialize.\n\n" );
+  return 1;
+}
 
-  if (!manager.init())
-  {
-    printf( "\n\nMesh Manager Failed to initialize.\n\n" );
-    return 1;
-  }
+if (!manager.init())
+{
+  printf( "\n\nMesh Manager Failed to initialize.\n\n" );
+  return 1;
+}
 
 /* Begin Manager/Driver settings code */
   printf("\nRFM 95 Settings:\n");
@@ -88,7 +88,7 @@ if (!rf95.init())
   rf95.setFrequency(RFM95_FREQUENCY);
   rf95.setModemConfig(RH_RF95::Bw125Cr48Sf4096);
 
-  /* End Manager/Driver settings code */
+/* End Manager/Driver settings code */
 
 /* Placeholder Message  */
 uint8_t data[] = "Hello World!";
@@ -107,7 +107,7 @@ if (myturn)
 
   //"TCP"
   Serial.println("Sending to...");
-  if(manager.sendto(data, sizeof(data),SERVER_ADDRESS_1))
+  if(manager.sendto(data, sizeof(data),SERVER_ADDRESS_1)) //message is being sent to address
   {
     printf("Inside send \n");
     
@@ -131,19 +131,32 @@ else
   //Server mode
   uint8_t len = sizeof(buf); //Size of message being received
   uint8_t from;
+
+  /* 
+  Check if message being received is a broadcast. 
+  If it's broadcast check if it's a duplicate, else broadcast it
+  If message is not a broadcast, print it, switch to client, and send a broadcast of the message being received
+   */
+
   if( from == RH_BROADCAST_ADDRESS)
   {
+    //Check for duplicate
+    //else broadcast
+    //Broadcast message received
+    manager.sendto(buf, len, RH_BROADCAST_ADDRESS);
 
   }
-  else
+  else //Message received is not a broadcast
   {
     if(manager.recvfrom(buf, &len, &from))
     {
+      //print message being received
       Serial.print("got message from : 0x");
       Serial.print(from, HEX);
       Serial.print(": ");
       Serial.println((char*)buf);
 
+      //switch to client mode
       myturn = true;
       rf95.waitAvailableTimeout(5000);
 
