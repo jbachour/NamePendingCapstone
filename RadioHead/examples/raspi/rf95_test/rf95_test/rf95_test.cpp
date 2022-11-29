@@ -35,16 +35,17 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHMesh manager(rf95, SERVER_ADDRESS_1);
+RHMesh manager(rf95, CLIENT_ADDRESS);
 
 //Flag for Ctrl-C
 int flag = 0;
 
 //indicates if it's the node's turn to transmit or not
-bool myturn = false; 
+bool myturn = true; 
 
-unsigned long last_transmission_time;
+struct timeval last_transmission_time;
 unsigned long TURN_TIMER = 15000;
+unsigned long RETRY_DELAY = 4000;
 std::map<int, bool> NODE_NETWORK_MAP;
 int num_nodes;
 int networkSessionKey;
@@ -57,25 +58,17 @@ int networkSessionKey;
 // myturn = true; 
 // }
 
-unsigned long mymillis(unsigned long time) {
+unsigned long difference() {
   //Declare a variable to store current time
   struct timeval RHCurrentTime;
   //Get current time
   gettimeofday(&RHCurrentTime,NULL);
   //Calculate the difference between our start time and the end time
-  unsigned long difference = (RHCurrentTime.tv_sec * 1000 - time);
-  difference += (RHCurrentTime.tv_usec / 1000 - time);
+  unsigned long difference = ((RHCurrentTime.tv_sec - last_transmission_time.tv_sec)*1000);
+  difference += ((RHCurrentTime.tv_usec - last_transmission_time.tv_usec)/1000);
+  printf("%ld\n", difference);
   //Return the calculated value
   return difference;
-}
-
-unsigned long timeOfDay() {
-  //Declare a variable to store current time
-  struct timeval RHCurrentTime;
-  //Get current time
-  gettimeofday(&RHCurrentTime,NULL);
-  unsigned long time = RHCurrentTime.tv_usec / 1000;
-  return time;
 }
 
 //Main Function
@@ -136,30 +129,30 @@ If it's my turn, I'm transmitting (client mode), else, I'm listening for packets
 */
 if (myturn){
 
-  last_transmission_time = timeOfDay();
   //Client mode
+  gettimeofday(&last_transmission_time,NULL);
     //"UDP BROADCAST"
 
     //"TCP"
     Serial.println("Sending to...");
-    if (manager.sendto(data, sizeof(data), CLIENT_ADDRESS))
+    if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
     {
 
         printf("Inside send \n");
           //Size of acknowledgement
           uint8_t len = sizeof(buf);
           uint8_t from;
-          while (mymillis(last_transmission_time) - last_transmission_time < TURN_TIMER) {
-          if (!manager.recvfrom(buf, &len, &from) && (mymillis(last_transmission_time) - last_transmission_time > 4000)) {
-            manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
+          while (difference() < TURN_TIMER) {
+          if ((!manager.recvfrom(buf, &len, &from)) && (difference() > RETRY_DELAY)) {
+            manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
           }
       // if(manager.waitAvailableTimeout(5000)){
       //Acknowledgement
     //rf95.waitPacketSent(1000);
           }
-   myturn=false;
-   last_transmission_time = timeOfDay();
-   rf95.setModeRx();
+    myturn=false;
+    gettimeofday(&last_transmission_time,NULL);
+    rf95.setModeRx();
     // if (manager.recvfrom(buf, &len, &from)){
     //   //Display acknowledgement message and address of sender
     //   Serial.print("got reply from : 0x");
@@ -189,7 +182,7 @@ else {
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
     //Serial.println("im available");
-    while (mymillis(last_transmission_time) - last_transmission_time < TURN_TIMER * num_nodes) 
+    while (difference() < TURN_TIMER * num_nodes) 
     {
     if(manager.recvfrom(buf, &len, &from))
     {
@@ -213,6 +206,7 @@ else {
 //rf95.waitAvailableTimeout(5000);
 
     }
+    myturn = true;
     }
   // }
   
