@@ -35,7 +35,7 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHMesh manager(rf95, CLIENT_ADDRESS);
+RHReliableDatagram manager(rf95, CLIENT_ADDRESS);
 
 //Flag for Ctrl-C
 int flag = 0;
@@ -132,6 +132,7 @@ uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
 //setup
 num_nodes = 2;
+bool sent = false;
 
 
 while(!flag)
@@ -144,51 +145,48 @@ If it's my turn, I'm transmitting (client mode), else, I'm listening for packets
 if (myturn){
 
   //Client mode
-  gettimeofday(&last_transmission_time,NULL);
-  gettimeofday(&starttime,NULL);
+  
     //"UDP BROADCAST"
 
     //"TCP"
-    Serial.println("Sending to...");
-    if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
+    //Serial.println("Sending to...");
+    if (!sent)
     {
-
-        printf("Inside send \n");
+      gettimeofday(&last_transmission_time,NULL);
+      gettimeofday(&starttime,NULL);
+      manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+      sent = true;
+    }
+    //printf("Inside send \n");
           //Size of acknowledgement
           uint8_t len = sizeof(buf);
           uint8_t from;
-          
-          while (difference() <= TURN_TIMER) { //mientras sea mi turno
-            //Serial.println("It's still my turn to transmit");
-            printf("%ld\n", mymillis());
-            printf("%ld\n", difference());
+            // printf("%ld\n", mymillis());
+            // printf("%ld\n", difference());
             if(manager.recvfrom(buf,&len, &from ))
             { 
               Serial.print("got message from : 0x");
               Serial.print(from, HEX);
               Serial.print(": ");
               Serial.println((char*)buf);
-              break;
             }
               //Serial.println("I didnt receive it");
-              //esto no calcula 4 secundos dsps que se pasa de 4 se
-            else if(mymillis() >= RETRY_DELAY) //4 segundos
+            if(mymillis() >= RETRY_DELAY) //4 segundos
             {
                 printf("4 seconds\n");
                 //Serial.println("keep sending it!");
                 gettimeofday(&starttime, NULL);
                 manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
-                rf95.setModeRx();
+                //rf95.setModeRx();
             }
-          }
           //wait for turn timer to end
-          while (difference() < TURN_TIMER){
-
-          }
-    myturn=false;
-    gettimeofday(&last_transmission_time,NULL);
-    rf95.setModeRx();
-    printf("switching to recv\n");
+            if (difference() >= TURN_TIMER){
+              myturn = false;
+              gettimeofday(&last_transmission_time,NULL);
+              //rf95.setModeRx();
+              printf("switching to recv\n");
+            }
+    
     // if (manager.recvfrom(buf, &len, &from)){
     //   //Display acknowledgement message and address of sender
     //   Serial.print("got reply from : 0x");
@@ -201,17 +199,12 @@ if (myturn){
     //  else {
     //   Serial.println("No reply - Acknowledgement failed");
     //    }
-    }
-    else 
-    //Message could not be sent
-    {
-    Serial.println("sendto failed");
-    }
 
 }
 else {
     //Server mode
-//erial.println("im now a recv");
+    gettimeofday(&last_transmission_time,NULL);
+    Serial.println("im now a recv");
     //Size of message being received
     uint8_t len = sizeof(buf);
     uint8_t from;
@@ -220,6 +213,7 @@ else {
     //Serial.println("im available");
     while (difference() <= TURN_TIMER * num_nodes) 
     {
+    if(manager.available()) {
     if(manager.recvfrom(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
@@ -227,7 +221,8 @@ else {
       Serial.print(": ");
       Serial.println((char*)buf);
       manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
-      rf95.setModeRx();
+      printf("sent ack\n");
+      //rf95.setModeRx();
 
        //Store data here
       // Send a reply back to the originator client
@@ -242,12 +237,11 @@ else {
      
       //rf95.setModeTx();
 //rf95.waitAvailableTimeout(5000);
-
     }
-    myturn = true;
+    }
     }
   // }
-  
+  myturn = true;
 }
 
 }
