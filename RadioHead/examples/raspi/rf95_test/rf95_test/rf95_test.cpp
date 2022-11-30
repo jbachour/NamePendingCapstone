@@ -35,13 +35,13 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHReliableDatagram manager(rf95, CLIENT_ADDRESS);
+RHReliableDatagram manager(rf95, SERVER_ADDRESS_1);
 
 //Flag for Ctrl-C
 int flag = 0;
 
 //indicates if it's the node's turn to transmit or not
-bool myturn = true; 
+bool myturn = false; 
 
 struct timeval last_transmission_time;
 struct timeval starttime;
@@ -154,7 +154,7 @@ if (myturn){
     {
       gettimeofday(&last_transmission_time,NULL);
       gettimeofday(&starttime,NULL);
-      manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+      manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
       sent = true;
     }
     //printf("Inside send \n");
@@ -171,12 +171,12 @@ if (myturn){
               Serial.println((char*)buf);
             }
               //Serial.println("I didnt receive it");
-            if(mymillis() >= RETRY_DELAY) //4 segundos
+            else if(mymillis() >= RETRY_DELAY) //4 segundos
             {
                 printf("4 seconds\n");
                 //Serial.println("keep sending it!");
                 gettimeofday(&starttime, NULL);
-                manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+                manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
                 //rf95.setModeRx();
             }
           //wait for turn timer to end
@@ -203,16 +203,17 @@ if (myturn){
 }
 else {
     //Server mode
-    gettimeofday(&last_transmission_time,NULL);
-    Serial.println("im now a recv");
+    if (sent){
+      gettimeofday(&last_transmission_time,NULL);
+      Serial.println("im now a recv");
+      sent = false;
+    }
     //Size of message being received
     uint8_t len = sizeof(buf);
     uint8_t from;
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
     //Serial.println("im available");
-    while (difference() <= TURN_TIMER * num_nodes) 
-    {
     if(manager.available()) {
     if(manager.recvfrom(buf, &len, &from))
     {
@@ -220,7 +221,7 @@ else {
       Serial.print(from, HEX);
       Serial.print(": ");
       Serial.println((char*)buf);
-      manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+      manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
       printf("sent ack\n");
       //rf95.setModeRx();
 
@@ -239,9 +240,10 @@ else {
 //rf95.waitAvailableTimeout(5000);
     }
     }
+    if (difference() >= TURN_TIMER * num_nodes) {
+      myturn = true;
     }
   // }
-  myturn = true;
 }
 
 }
