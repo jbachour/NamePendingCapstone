@@ -66,7 +66,7 @@ unsigned long difference() {
   //Calculate the difference between our start time and the end time
   unsigned long difference = ((RHCurrentTime.tv_sec - last_transmission_time.tv_sec)*1000);
   difference += ((RHCurrentTime.tv_usec - last_transmission_time.tv_usec)/1000);
-  printf("%ld\n", difference);
+  //printf("%ld\n", difference);
   //Return the calculated value
   return difference;
 }
@@ -142,13 +142,29 @@ if (myturn){
           //Size of acknowledgement
           uint8_t len = sizeof(buf);
           uint8_t from;
-          while (difference() < TURN_TIMER) {
-          if ((!manager.recvfrom(buf, &len, &from)) && (difference() > RETRY_DELAY)) {
-            manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+          while (difference() < TURN_TIMER) { //mientras sea mi turno
+            //Serial.println("It's still my turn to transmit");
+            printf("%ld\n", difference());
+            if(manager.recvfrom(buf,&len, &from ))
+            { 
+              Serial.print("got message from : 0x");
+              Serial.print(from, HEX);
+              Serial.print(": ");
+              Serial.println((char*)buf);
+              break;
+            }
+              //Serial.println("I didnt receive it");
+              //esto no calcula 4 secundos dsps que se pasa de 4 segs
+            else if(difference() > RETRY_DELAY) //4 segundos
+            {
+                //Serial.println("keep sending it!");
+                manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+                rf95.setModeRx();
+            }
           }
-      // if(manager.waitAvailableTimeout(5000)){
-      //Acknowledgement
-    //rf95.waitPacketSent(1000);
+          //wait for turn timer to end
+          while (difference() < TURN_TIMER){
+
           }
     myturn=false;
     gettimeofday(&last_transmission_time,NULL);
@@ -190,7 +206,7 @@ else {
       Serial.print(from, HEX);
       Serial.print(": ");
       Serial.println((char*)buf);
-
+      manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
        //Store data here
       // Send a reply back to the originator client
       // uint8_t data[] = "My acknowledgement";
@@ -201,7 +217,7 @@ else {
       // else{
       //   Serial.println("sendtoWait failed");
       // }
-      myturn = true;
+     
       //rf95.setModeTx();
 //rf95.waitAvailableTimeout(5000);
 
