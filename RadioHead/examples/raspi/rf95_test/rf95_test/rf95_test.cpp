@@ -44,6 +44,7 @@ int flag = 0;
 bool myturn = true; 
 
 struct timeval last_transmission_time;
+struct timeval starttime;
 unsigned long TURN_TIMER = 15000;
 unsigned long RETRY_DELAY = 4000;
 std::map<int, bool> NODE_NETWORK_MAP;
@@ -66,6 +67,19 @@ unsigned long difference() {
   //Calculate the difference between our start time and the end time
   unsigned long difference = ((RHCurrentTime.tv_sec - last_transmission_time.tv_sec)*1000);
   difference += ((RHCurrentTime.tv_usec - last_transmission_time.tv_usec)/1000);
+  //printf("%ld\n", difference);
+  //Return the calculated value
+  return difference;
+}
+
+unsigned long mymillis() {
+  //Declare a variable to store current time
+  struct timeval RHCurrentTime;
+  //Get current time
+  gettimeofday(&RHCurrentTime,NULL);
+  //Calculate the difference between our start time and the end time
+  unsigned long difference = ((RHCurrentTime.tv_sec - starttime.tv_sec)*1000);
+  difference += ((RHCurrentTime.tv_usec - starttime.tv_usec)/1000);
   //printf("%ld\n", difference);
   //Return the calculated value
   return difference;
@@ -131,6 +145,7 @@ if (myturn){
 
   //Client mode
   gettimeofday(&last_transmission_time,NULL);
+  gettimeofday(&starttime,NULL);
     //"UDP BROADCAST"
 
     //"TCP"
@@ -142,8 +157,10 @@ if (myturn){
           //Size of acknowledgement
           uint8_t len = sizeof(buf);
           uint8_t from;
-          while (difference() < TURN_TIMER) { //mientras sea mi turno
+          
+          while (difference() <= TURN_TIMER) { //mientras sea mi turno
             //Serial.println("It's still my turn to transmit");
+            printf("%ld\n", mymillis());
             printf("%ld\n", difference());
             if(manager.recvfrom(buf,&len, &from ))
             { 
@@ -154,10 +171,12 @@ if (myturn){
               break;
             }
               //Serial.println("I didnt receive it");
-              //esto no calcula 4 secundos dsps que se pasa de 4 segs
-            else if(difference() > RETRY_DELAY) //4 segundos
+              //esto no calcula 4 secundos dsps que se pasa de 4 se
+            else if(mymillis() >= RETRY_DELAY) //4 segundos
             {
+                printf("4 seconds\n");
                 //Serial.println("keep sending it!");
+                gettimeofday(&starttime, NULL);
                 manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
                 rf95.setModeRx();
             }
@@ -169,6 +188,7 @@ if (myturn){
     myturn=false;
     gettimeofday(&last_transmission_time,NULL);
     rf95.setModeRx();
+    printf("switching to recv\n");
     // if (manager.recvfrom(buf, &len, &from)){
     //   //Display acknowledgement message and address of sender
     //   Serial.print("got reply from : 0x");
@@ -198,7 +218,7 @@ else {
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
     //Serial.println("im available");
-    while (difference() < TURN_TIMER * num_nodes) 
+    while (difference() <= TURN_TIMER * num_nodes) 
     {
     if(manager.recvfrom(buf, &len, &from))
     {
@@ -207,6 +227,8 @@ else {
       Serial.print(": ");
       Serial.println((char*)buf);
       manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+      rf95.setModeRx();
+
        //Store data here
       // Send a reply back to the originator client
       // uint8_t data[] = "My acknowledgement";
