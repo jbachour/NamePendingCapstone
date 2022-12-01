@@ -183,7 +183,7 @@ Serial.println("sent messga");
 	    || (_enableCRC && !(hop_channel & RH_RF95_RX_PAYLOAD_CRC_IS_ON)) ))
 //    if (_mode == RHModeRx && irq_flags & (RH_RF95_RX_TIMEOUT | RH_RF95_PAYLOAD_CRC_ERROR))
     {
-//	Serial.println("E");
+	Serial.println("bad");
 	_rxBad++;
         clearRxBuf();
     }
@@ -192,7 +192,7 @@ Serial.println("sent messga");
     else if (_mode == RHModeRx && irq_flags & RH_RF95_RX_DONE)
     {
 	// Packet received, no CRC error
-//	Serial.println("R");
+	Serial.println("good");
 	// Have received a packet
 	uint8_t len = spiRead(RH_RF95_REG_13_RX_NB_BYTES);
 
@@ -226,7 +226,7 @@ Serial.println("sent messga");
     }
     else if (_mode == RHModeTx && irq_flags & RH_RF95_TX_DONE)
     {
-//	Serial.println("T");
+	Serial.println("Tx");
 	_txGood++;
 	setModeIdle();
     }

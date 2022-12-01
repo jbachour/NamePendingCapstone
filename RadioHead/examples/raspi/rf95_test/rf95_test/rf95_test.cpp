@@ -35,7 +35,7 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHReliableDatagram manager(rf95, SERVER_ADDRESS_1);
+RHMesh manager(rf95, SERVER_ADDRESS_1);
 
 //Flag for Ctrl-C
 int flag = 0;
@@ -46,7 +46,7 @@ bool myturn = false;
 struct timeval last_transmission_time;
 struct timeval starttime;
 unsigned long TURN_TIMER = 15000;
-unsigned long RETRY_DELAY = 4000;
+unsigned long RETRY_DELAY = 6000;
 std::map<int, bool> NODE_NETWORK_MAP;
 int num_nodes;
 int networkSessionKey;
@@ -132,7 +132,7 @@ uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
 //setup
 num_nodes = 2;
-bool sent = false;
+bool sent = true;
 
 
 while(!flag)
@@ -156,6 +156,8 @@ if (myturn){
       gettimeofday(&starttime,NULL);
       manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
       sent = true;
+      //rf95.setModeIdle();
+
     }
     //printf("Inside send \n");
           //Size of acknowledgement
@@ -177,13 +179,13 @@ if (myturn){
                 //Serial.println("keep sending it!");
                 gettimeofday(&starttime, NULL);
                 manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
-                //rf95.setModeRx();
+                //rf95.setModeIdle();
             }
           //wait for turn timer to end
             if (difference() >= TURN_TIMER){
               myturn = false;
               gettimeofday(&last_transmission_time,NULL);
-              //rf95.setModeRx();
+              //rf95.setModeIdle();
               printf("switching to recv\n");
             }
     
@@ -223,7 +225,7 @@ else {
       Serial.println((char*)buf);
       manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
       printf("sent ack\n");
-      //rf95.setModeRx();
+      //rf95.setModeIdle();
 
        //Store data here
       // Send a reply back to the originator client
