@@ -41,12 +41,12 @@ RHMesh manager(rf95, CLIENT_ADDRESS);
 int flag = 0;
 
 //indicates if it's the node's turn to transmit or not
-bool myturn = true; 
+bool myturn = false; 
 
 struct timeval last_transmission_time;
 struct timeval starttime;
 unsigned long TURN_TIMER = 15000;
-unsigned long RETRY_DELAY = 6000;
+unsigned long RETRY_DELAY = 8000;
 std::map<int, bool> NODE_NETWORK_MAP;
 int num_nodes;
 int networkSessionKey;
@@ -122,6 +122,10 @@ if (!rf95.init())
   rf95.setTxPower(RFM95_TXPOWER, false);
   rf95.setFrequency(RFM95_FREQUENCY);
   rf95.setModemConfig(RH_RF95::Bw125Cr48Sf4096);
+  rf95.setThisAddress(CLIENT_ADDRESS);
+  rf95.setHeaderFrom(CLIENT_ADDRESS);
+  rf95.setHeaderTo(SERVER_ADDRESS_1);
+
 
   /* End Manager/Driver settings code */
 
@@ -132,7 +136,7 @@ uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
 //setup
 num_nodes = 2;
-bool sent = false;
+bool sent = true;
 
 
 while(!flag)
@@ -154,23 +158,31 @@ if (myturn){
     {
       gettimeofday(&last_transmission_time,NULL);
       gettimeofday(&starttime,NULL);
-      manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+      rf95.send(data, sizeof(data));
+      //manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
       sent = true;
       //rf95.setModeIdle();
 
     }
     //printf("Inside send \n");
           //Size of acknowledgement
+          uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
           uint8_t len = sizeof(buf);
           uint8_t from;
             // printf("%ld\n", mymillis());
             // printf("%ld\n", difference());
-            if(manager.recvfrom(buf,&len, &from ))
+            if (rf95.recv(buf, &len))
+            //if(manager.recvfrom(buf,&len, &from ))
             { 
               Serial.print("got message from : 0x");
               Serial.print(from, HEX);
               Serial.print(": ");
               Serial.println((char*)buf);
+              // while (difference() <= TURN_TIMER)
+              // {
+                
+              // }
+              
             }
               //Serial.println("I didnt receive it");
             else if(mymillis() >= RETRY_DELAY) //4 segundos
@@ -178,7 +190,8 @@ if (myturn){
                 printf("4 seconds\n");
                 //Serial.println("keep sending it!");
                 gettimeofday(&starttime, NULL);
-                manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+                rf95.send(data, sizeof(data));
+                //manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
                 //rf95.setModeIdle();
             }
           //wait for turn timer to end
@@ -211,20 +224,24 @@ else {
       sent = false;
     }
     //Size of message being received
+    uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
     uint8_t len = sizeof(buf);
     uint8_t from;
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
     //Serial.println("im available");
-    //if(manager.available()) {
-    if(manager.recvfrom(buf, &len, &from))
+    if(manager.waitAvailableTimeout(2000)) {
+    if (rf95.recv(buf, &len))
+    //if(manager.recvfrom(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
       Serial.print(from, HEX);
       Serial.print(": ");
       Serial.println((char*)buf);
-      manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
-      printf("sent ack\n");
+      //rf95.send(data, sizeof(data));
+      //rf95.waitPacketSent();
+      //manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+      //printf("sent ack\n");
       //rf95.setModeIdle();
 
        //Store data here
@@ -241,7 +258,7 @@ else {
       //rf95.setModeTx();
 //rf95.waitAvailableTimeout(5000);
     }
-    //}
+    }
     if (difference() >= TURN_TIMER * num_nodes) {
       myturn = true;
     }

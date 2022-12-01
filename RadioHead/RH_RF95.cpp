@@ -173,7 +173,7 @@ void RH_RF95::handleInterrupt()
     // kevinh: turn this off until root cause is known, because it can cause missed interrupts!
     // spiWrite(RH_RF95_REG_12_IRQ_FLAGS, 0xff); // Clear all IRQ flags
     spiWrite(RH_RF95_REG_12_IRQ_FLAGS, 0xff); // Clear all IRQ flags
-Serial.println("sent messga");
+    Serial.println("sent messga");
     // error if:
     // timeout
     // bad CRC
@@ -192,7 +192,7 @@ Serial.println("sent messga");
     else if (_mode == RHModeRx && irq_flags & RH_RF95_RX_DONE)
     {
 	// Packet received, no CRC error
-	Serial.println("good");
+//	Serial.println("good");
 	// Have received a packet
 	uint8_t len = spiRead(RH_RF95_REG_13_RX_NB_BYTES);
 
@@ -220,6 +220,7 @@ Serial.println("sent messga");
 	    _lastRssi -= 164;
 	    
 	// We have received a message.
+    Serial.println("good");
 	validateRxBuf(); 
 	if (_rxBufValid)
 	    setModeIdle(); // Got one 
@@ -232,7 +233,7 @@ Serial.println("sent messga");
     }
     else if (_mode == RHModeCad && irq_flags & RH_RF95_CAD_DONE)
     {
-//	Serial.println("C");
+	Serial.println("Cad");
         _cad = irq_flags & RH_RF95_CAD_DETECTED;
         setModeIdle();
     }
@@ -277,11 +278,18 @@ void RH_RF95::validateRxBuf()
     _rxHeaderFrom  = _buf[1];
     _rxHeaderId    = _buf[2];
     _rxHeaderFlags = _buf[3];
-    
+    printf("validated\n");
+    printf("%d\n", _rxHeaderTo);
+    printf("%d\n", _thisAddress);
+    printf("%d\n", _promiscuous);
+    printf("%d\n", RH_BROADCAST_ADDRESS);
+    //problem is in this if
+    //it does not go in
     if (_promiscuous ||
 	_rxHeaderTo == _thisAddress ||
 	_rxHeaderTo == RH_BROADCAST_ADDRESS)
     {
+    printf("rxgood++\n");
 	_rxGood++;
 	_rxBufValid = true;
     }
@@ -304,6 +312,7 @@ bool RH_RF95::available()
 
 void RH_RF95::clearRxBuf()
 {
+    printf("cleared buf\n");
     ATOMIC_BLOCK_START;
     _rxBufValid = false;
     _bufLen = 0;
