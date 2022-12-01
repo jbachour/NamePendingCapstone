@@ -35,13 +35,13 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHMesh manager(rf95, SERVER_ADDRESS_1);
+RHMesh manager(rf95, CLIENT_ADDRESS);
 
 //Flag for Ctrl-C
 int flag = 0;
 
 //indicates if it's the node's turn to transmit or not
-bool myturn = false; 
+bool myturn = true; 
 
 struct timeval last_transmission_time;
 struct timeval starttime;
@@ -132,7 +132,7 @@ uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
 //setup
 num_nodes = 2;
-bool sent = true;
+bool sent = false;
 
 
 while(!flag)
@@ -154,7 +154,7 @@ if (myturn){
     {
       gettimeofday(&last_transmission_time,NULL);
       gettimeofday(&starttime,NULL);
-      manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
+      manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
       sent = true;
       //rf95.setModeIdle();
 
@@ -165,6 +165,7 @@ if (myturn){
           uint8_t from;
             // printf("%ld\n", mymillis());
             // printf("%ld\n", difference());
+            if(rf95.waitAvailableTimeout(3000)) {
             if(manager.recvfrom(buf,&len, &from ))
             { 
               Serial.print("got message from : 0x");
@@ -178,8 +179,10 @@ if (myturn){
                 printf("4 seconds\n");
                 //Serial.println("keep sending it!");
                 gettimeofday(&starttime, NULL);
-                manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
+                manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
+                rf95.waitPacketSent(10000);
                 //rf95.setModeIdle();
+            }
             }
           //wait for turn timer to end
             if (difference() >= TURN_TIMER){
@@ -216,15 +219,16 @@ else {
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
     //Serial.println("im available");
-    if(manager.available()) {
+    if(rf95.waitAvailableTimeout(3000)) {
     if(manager.recvfrom(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
       Serial.print(from, HEX);
       Serial.print(": ");
       Serial.println((char*)buf);
-      manager.sendto(data, sizeof(data), CLIENT_ADDRESS);
+      manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
       printf("sent ack\n");
+      rf95.waitPacketSent(10000);
       //rf95.setModeIdle();
 
        //Store data here
