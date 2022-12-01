@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#include <map>
 
 //Function Definitions
 void sig_handler(int sig);
@@ -39,8 +40,47 @@ RHMesh manager(rf95, CLIENT_ADDRESS);
 //Flag for Ctrl-C
 int flag = 0;
 
-//indicates if it's the node's turn to transmit or not
+//node's 3 states: client, ack, server
+bool client_mode = true;
 bool myturn = true;
+bool server_mode = true;
+
+/*Scheduler code begins here*/
+
+struct timeval last_transmission_time;
+struct timeval starttime;
+unsigned long TURN_TIMER = 15000;
+unsigned long RETRY_DELAY = 4000;
+std::map<int, bool> NODE_NETWORK_MAP;
+int num_nodes;
+int networkSessionKey;
+
+unsigned long difference() {
+  //Declare a variable to store current time
+  struct timeval RHCurrentTime;
+  //Get current time
+  gettimeofday(&RHCurrentTime,NULL);
+  //Calculate the difference between our start time and the end time
+  unsigned long difference = ((RHCurrentTime.tv_sec - last_transmission_time.tv_sec)*1000);
+  difference += ((RHCurrentTime.tv_usec - last_transmission_time.tv_usec)/1000);
+  //printf("%ld\n", difference);
+  //Return the calculated value
+  return difference;
+}
+unsigned long mymillis() {
+  //Declare a variable to store current time
+  struct timeval RHCurrentTime;
+  //Get current time
+  gettimeofday(&RHCurrentTime,NULL);
+  //Calculate the difference between our start time and the end time
+  unsigned long difference = ((RHCurrentTime.tv_sec - starttime.tv_sec)*1000);
+  difference += ((RHCurrentTime.tv_usec - starttime.tv_usec)/1000);
+  //printf("%ld\n", difference);
+  //Return the calculated value
+  return difference;
+}
+
+/*Scheduler code ends here*/
 
 //Main Function
 int main (int argc, const char* argv[] )
@@ -90,38 +130,37 @@ uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
 while(!flag)
 {
-// Serial.println("Sending message");
+  gettimeofday(&last_transmission_time,NULL);
+  gettimeofday(&starttime,NULL);
 
-/*
-If it's my turn, I'm transmitting (client mode), else, I'm listening for packets (server mode)
-*/
-if (myturn){
+//join boolean of client to time constraint
+
+if (client_mode){
   //Client mode
-
 
     //"TCP"
     Serial.println("Sending to...");
     if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
     {
       printf("Inside send \n");
-      //Size of acknowledgement
+      //Size of message
       uint8_t len = sizeof(buf);
       uint8_t from;
      
       rf95.waitPacketSent(1000);
       printf("waited\n");
-      myturn=false;
+      server_mode=true;
+      client_mode=false;
       rf95.setModeRx();
     
     }
-    else 
-    //Message could not be sent
+    else //Message could not be sent
     {
-    Serial.println("sendto failed");
-    }
+    Serial.println("Message could not be sent");
 
+    }
 }
-else {
+else if (server_mode){
     //Server mode
     uint8_t len = sizeof(buf);
     uint8_t from;
@@ -132,10 +171,39 @@ else {
       Serial.print(from, HEX);
       Serial.print(": ");
       Serial.println((char*)buf);
-      myturn = true;
+      client_mode = true;
+      server_mode=false;
       //rf95.setModeTx();
-      rf95.waitAvailableTimeout(5000);
+      
+
+      if (difference() >= TURN_TIMER && myturn){ //wait for turn timer to end
+      rf95.waitAvailableTimeout(difference() - TURN_TIMER);
+      server_mode = true;
+      client_mode=false;
+      myturn=false;
+      }
+
     }
+    else{
+      //keep trying to catch ack 
+      if(myturn && difference() >= TURN_TIMER ){ //i didnt receive ack, and i still have time
+        client_mode = true;
+        server_mode=false;
+      }
+      else{
+        if(difference() >= TURN_TIMER){ //i didnt recv. and i stil have time
+        server_mode = true;
+        client_mode=false;
+        }
+        else{ // i didnt recv msg and i dont have time
+        client_mode = true;
+        server_mode = false;
+        }
+      }
+    }
+}
+else{ //not client, not server, not ack, what is it?
+
 }
 
 }
