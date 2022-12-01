@@ -165,7 +165,6 @@ if (myturn){
           uint8_t from;
             // printf("%ld\n", mymillis());
             // printf("%ld\n", difference());
-            if(rf95.waitAvailableTimeout(3000)) {
             if(manager.recvfrom(buf,&len, &from ))
             { 
               Serial.print("got message from : 0x");
@@ -180,9 +179,7 @@ if (myturn){
                 //Serial.println("keep sending it!");
                 gettimeofday(&starttime, NULL);
                 manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
-                rf95.waitPacketSent(10000);
                 //rf95.setModeIdle();
-            }
             }
           //wait for turn timer to end
             if (difference() >= TURN_TIMER){
@@ -219,7 +216,7 @@ else {
     // if (manager.recvfrom(buf, &len, &from))
    //if(manager.available()){
     //Serial.println("im available");
-    if(rf95.waitAvailableTimeout(3000)) {
+    //if(manager.available()) {
     if(manager.recvfrom(buf, &len, &from))
     {
       Serial.print("got message from : 0x");
@@ -228,7 +225,6 @@ else {
       Serial.println((char*)buf);
       manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
       printf("sent ack\n");
-      rf95.waitPacketSent(10000);
       //rf95.setModeIdle();
 
        //Store data here
@@ -245,7 +241,7 @@ else {
       //rf95.setModeTx();
 //rf95.waitAvailableTimeout(5000);
     }
-    }
+    //}
     if (difference() >= TURN_TIMER * num_nodes) {
       myturn = true;
     }
