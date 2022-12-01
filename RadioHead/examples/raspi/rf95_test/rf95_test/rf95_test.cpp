@@ -131,7 +131,7 @@ if (!rf95.init())
 
 /* Placeholder Message  */
 uint8_t data[] = "Hello World!";
-uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
+uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
 /* End Placeholder Message */
 
 //setup
@@ -238,10 +238,10 @@ else {
       Serial.print(from, HEX);
       Serial.print(": ");
       Serial.println((char*)buf);
-      //rf95.send(data, sizeof(data));
-      //rf95.waitPacketSent();
+      rf95.send(data, sizeof(data));
+      rf95.waitPacketSent();
       //manager.sendto(data, sizeof(data), SERVER_ADDRESS_1);
-      //printf("sent ack\n");
+      printf("sent ack\n");
       //rf95.setModeIdle();
 
        //Store data here
