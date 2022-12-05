@@ -34,13 +34,13 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHMesh manager(rf95, SERVER_ADDRESS_1);
+RHMesh manager(rf95, CLIENT_ADDRESS);
 
 // Flag for Ctrl-C
 int flag = 0;
 
 // indicates if it's the node's turn to transmit or not
-int state = 4;
+int state = 1;
 
 // Main Function
 int main(int argc, const char *argv[])
@@ -88,6 +88,9 @@ int main(int argc, const char *argv[])
   uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
   /* End Placeholder Message */
 
+  unsigned long retrystarttime;
+  unsigned long retrysend = 5000;
+
   while (!flag)
   {
 
@@ -106,6 +109,7 @@ int main(int argc, const char *argv[])
         rf95.setModeRx();
         state = 2;
       }
+      retrystarttime = millis();
     }
     else if (state == 2) // recv ack
     {
@@ -121,6 +125,11 @@ int main(int argc, const char *argv[])
         rf95.waitAvailableTimeout(5000); // wait time available inside of 15s
         state = 5;
       }
+      if (millis() - retrystarttime >= retrysend)
+      {
+        state = 1;
+      }
+
     }
     else if (state == 3) // send ack
     {
@@ -143,6 +152,7 @@ int main(int argc, const char *argv[])
     {
       uint8_t len = sizeof(buf);
       uint8_t from, to;
+
       if (manager.recvfrom(buf, &len, &from, &to))
       {
 
