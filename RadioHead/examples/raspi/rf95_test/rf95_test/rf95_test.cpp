@@ -40,10 +40,7 @@ RHMesh manager(rf95, CLIENT_ADDRESS);
 int flag = 0;
 
 // indicates if it's the node's turn to transmit or not
-bool send = true;
-bool recv_ack = false;
-bool send_ack = false;
-bool recv = false;
+int state= 0;
 
 // Main Function
 int main(int argc, const char *argv[])
@@ -93,7 +90,7 @@ int main(int argc, const char *argv[])
   while (!flag)
   {
 
-    if (send)
+    if (state == 1) //sending 
     {
       if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
       {
@@ -106,10 +103,10 @@ int main(int argc, const char *argv[])
         rf95.waitPacketSent();
         printf("waited \n");
         rf95.setModeRx();
-        recv_ack = true;
+        state = 2;
       }
     }
-    else if (recv_ack)
+    else if (state == 2) //recv ack
     {
       uint8_t len = sizeof(buf);
       uint8_t from;
@@ -123,7 +120,7 @@ int main(int argc, const char *argv[])
         rf95.waitAvailableTimeout(5000); // wait time available inside of 15s
       }
     }
-    else if (send_ack)
+    else if (state == 3) //send ack
     {
       if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
       {
@@ -136,10 +133,10 @@ int main(int argc, const char *argv[])
         rf95.waitPacketSent();
         printf("waited \n");
         rf95.setModeTx();
-        recv = true;
+        state = 4;
       }
     }
-    else if (recv)
+    else if (state == 4) //recv
     {
       uint8_t len = sizeof(buf);
       uint8_t from;
@@ -151,7 +148,7 @@ int main(int argc, const char *argv[])
         Serial.print(": ");
         Serial.println((char *)buf);
 
-        send_ack = true;
+        state = 3;
       }
     }
     else
