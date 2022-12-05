@@ -89,7 +89,7 @@ int main(int argc, const char *argv[])
   /* End Placeholder Message */
 
   unsigned long retrystarttime;
-  unsigned long retrysend = 5000;
+  unsigned long retrysend = 10000;
 
   while (!flag)
   {
@@ -125,7 +125,7 @@ int main(int argc, const char *argv[])
         rf95.waitAvailableTimeout(5000); // wait time available inside of 15s
         state = 5;
       }
-      if (millis() - retrystarttime >= retrysend)
+      else if (millis() - retrystarttime >= retrysend)
       {
         state = 1;
       }
@@ -187,6 +187,7 @@ int main(int argc, const char *argv[])
         Serial.print("sent turn to server 1");
         state = 4;
       }
+      retrystarttime = millis();
     }
   }
   printf("\n Test has ended \n");
