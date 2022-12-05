@@ -93,10 +93,10 @@ int main(int argc, const char *argv[])
 
     if (state == 1) // sending
     {
-      if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
+      if (manager.sendto(data, sizeof(data), RH_BROADCAST_ADDRESS))
       {
 
-        printf("Sending... \n");
+        printf("Sending broadcast... \n");
         // Size of message
         uint8_t len = sizeof(buf);
         uint8_t from;
@@ -124,7 +124,8 @@ int main(int argc, const char *argv[])
     }
     else if (state == 3) // send ack
     {
-      if (manager.sendto(data, sizeof(data), CLIENT_ADDRESS))
+      uint8_t from;
+      if (manager.sendto(data, sizeof(data), from))
       {
 
         printf("Sending ack \n");
@@ -141,33 +142,40 @@ int main(int argc, const char *argv[])
     else if (state == 4) // recv
     {
       uint8_t len = sizeof(buf);
-      uint8_t from;
-
-      if (manager.recvfrom(buf, &len, &from))
+      uint8_t from, to;
+      if (manager.recvfrom(buf, &len, &from, &to))
       {
-        if (from == RH_BROADCAST_ADDRESS)
+
+        if (to == SERVER_ADDRESS_1)
         {
-          Serial.print("got BROADCAST : 0x");
+          Serial.print("got message THAT ITS MY TURN : 0x");
           Serial.print(from, HEX);
           Serial.print(": ");
           Serial.println((char *)buf);
-          state = 1; //client
+          state = 1; // client
         }
-        Serial.print("got message from : 0x");
-        Serial.print(from, HEX);
-        Serial.print(": ");
-        Serial.println((char *)buf);
-        state = 3;
+        else
+        {
+          Serial.print("got broadcast from : 0x");
+          Serial.print(from, HEX);
+          Serial.print(": ");
+          Serial.println((char *)buf);
+          //printf("this is to %d", to);
+          rf95.waitAvailableTimeout(5000);
+          state = 3;
+        }
       }
     }
     else if (state == 5) // send broadcast
     {
       uint8_t data[] = "Node 2";
       uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
-      ;
 
-      if (manager.sendto(data, sizeof(data), RH_BROADCAST_ADDRESS))
+      if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
       {
+        rf95.waitPacketSent();
+        Serial.print("sent turn to server 1");
+        state = 4;
       }
     }
   }
