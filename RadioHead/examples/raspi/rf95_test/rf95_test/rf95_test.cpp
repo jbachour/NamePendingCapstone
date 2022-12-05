@@ -89,7 +89,7 @@ int main(int argc, const char *argv[])
   /* End Placeholder Message */
 
   unsigned long retrystarttime;
-  unsigned long retrysend = 10000;
+  unsigned long retrysend = 4000;
   unsigned long startturntimer;
   unsigned long turntimer = 15000;
 
@@ -124,16 +124,17 @@ int main(int argc, const char *argv[])
         Serial.print(from, HEX);
         Serial.print(": ");
         Serial.println((char *)buf);
-        rf95.waitAvailableTimeout(5000); // wait time available inside of 15s
+        rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
         state = 5;
       }
-      else if (millis() - retrystarttime >= retrysend)
+      else if (millis() - retrystarttime >= retrysend && (millis() - startturntimer <= turntimer))
       {
         state = 6; // retry send
       }
       else if (millis() - startturntimer >= turntimer)
       {
         state = 5; // send broadcast - tell next node its his turn
+        printf("turn over \n");
       }
 
     }
@@ -168,6 +169,7 @@ int main(int argc, const char *argv[])
           Serial.print(from, HEX);
           Serial.print(": ");
           Serial.println((char *)buf);
+          rf95.waitAvailableTimeout(1000);
           state = 1; // client
           startturntimer = millis();
         }
@@ -178,7 +180,7 @@ int main(int argc, const char *argv[])
           Serial.print(": ");
           Serial.println((char *)buf);
           //printf("this is to %d", to);
-          rf95.waitAvailableTimeout(5000);
+          rf95.waitAvailableTimeout(1000);
           state = 3;
         }
       }
@@ -200,7 +202,7 @@ int main(int argc, const char *argv[])
     {
       if (manager.sendto(data, sizeof(data), RH_BROADCAST_ADDRESS))
       {
-        printf("Sending broadcast... \n");
+        printf("Sending retry... \n");
         // Size of message
         uint8_t len = sizeof(buf);
         uint8_t from;
