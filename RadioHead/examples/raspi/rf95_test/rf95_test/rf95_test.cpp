@@ -90,15 +90,17 @@ int main(int argc, const char *argv[])
 
   unsigned long retrystarttime;
   unsigned long retrysend = 10000;
+  unsigned long startturntimer;
+  unsigned long turntimer = 15000;
 
   while (!flag)
   {
 
     if (state == 1) // sending
     {
+      startturntimer = millis();
       if (manager.sendto(data, sizeof(data), RH_BROADCAST_ADDRESS))
       {
-
         printf("Sending broadcast... \n");
         // Size of message
         uint8_t len = sizeof(buf);
@@ -127,7 +129,11 @@ int main(int argc, const char *argv[])
       }
       else if (millis() - retrystarttime >= retrysend)
       {
-        state = 1;
+        state = 6; // retry send
+      }
+      else if (millis() - startturntimer >= turntimer)
+      {
+        state = 5; // send broadcast - tell next node its his turn
       }
 
     }
@@ -163,6 +169,7 @@ int main(int argc, const char *argv[])
           Serial.print(": ");
           Serial.println((char *)buf);
           state = 1; // client
+          startturntimer = millis();
         }
         else
         {
@@ -186,6 +193,22 @@ int main(int argc, const char *argv[])
         rf95.waitPacketSent();
         Serial.print("sent turn to server 1");
         state = 4;
+      }
+      retrystarttime = millis();
+    }
+    else if (state == 6) // retry send
+    {
+      if (manager.sendto(data, sizeof(data), RH_BROADCAST_ADDRESS))
+      {
+        printf("Sending broadcast... \n");
+        // Size of message
+        uint8_t len = sizeof(buf);
+        uint8_t from;
+        // wait for packet to be sent
+        rf95.waitPacketSent();
+        printf("waited \n");
+        rf95.setModeRx();
+        state = 2;
       }
       retrystarttime = millis();
     }
