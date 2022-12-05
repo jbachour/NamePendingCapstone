@@ -34,17 +34,18 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHMesh manager(rf95, CLIENT_ADDRESS);
+RHMesh manager(rf95, SERVER_ADDRESS_1);
 
 // Flag for Ctrl-C
 int flag = 0;
 
 // indicates if it's the node's turn to transmit or not
-int state= 0;
+int state = 4;
 
 // Main Function
 int main(int argc, const char *argv[])
 {
+
   if (gpioInitialise() < 0) // pigpio library function that initiliazes gpio
   {
     printf("\n GPIOs could not be initialized");
@@ -90,7 +91,7 @@ int main(int argc, const char *argv[])
   while (!flag)
   {
 
-    if (state == 1) //sending 
+    if (state == 1) // sending
     {
       if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
       {
@@ -99,14 +100,14 @@ int main(int argc, const char *argv[])
         // Size of message
         uint8_t len = sizeof(buf);
         uint8_t from;
-        //wait for packet to be sent
+        // wait for packet to be sent
         rf95.waitPacketSent();
         printf("waited \n");
         rf95.setModeRx();
         state = 2;
       }
     }
-    else if (state == 2) //recv ack
+    else if (state == 2) // recv ack
     {
       uint8_t len = sizeof(buf);
       uint8_t from;
@@ -118,50 +119,64 @@ int main(int argc, const char *argv[])
         Serial.print(": ");
         Serial.println((char *)buf);
         rf95.waitAvailableTimeout(5000); // wait time available inside of 15s
+        state = 5;
       }
     }
-    else if (state == 3) //send ack
+    else if (state == 3) // send ack
     {
-      if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
+      if (manager.sendto(data, sizeof(data), CLIENT_ADDRESS))
       {
 
         printf("Sending ack \n");
         // Size of message
         uint8_t len = sizeof(buf);
         uint8_t from;
-        //wait for packet to be sent
+        // wait for packet to be sent
         rf95.waitPacketSent();
         printf("waited \n");
-        rf95.setModeTx();
+        rf95.setModeRx();
         state = 4;
       }
     }
-    else if (state == 4) //recv
+    else if (state == 4) // recv
     {
       uint8_t len = sizeof(buf);
       uint8_t from;
 
       if (manager.recvfrom(buf, &len, &from))
       {
+        if (from == RH_BROADCAST_ADDRESS)
+        {
+          Serial.print("got BROADCAST : 0x");
+          Serial.print(from, HEX);
+          Serial.print(": ");
+          Serial.println((char *)buf);
+          state = 1; //client
+        }
         Serial.print("got message from : 0x");
         Serial.print(from, HEX);
         Serial.print(": ");
         Serial.println((char *)buf);
-
         state = 3;
       }
     }
-    else
+    else if (state == 5) // send broadcast
     {
-      // not one of the previous states
-    }
-    printf("\n Test has ended \n");
-    gpioTerminate();
-    return 0;
-  }
+      uint8_t data[] = "Node 2";
+      uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
+      ;
 
-  void sig_handler(int sig)
-  {
-    flag = 1;
+      if (manager.sendto(data, sizeof(data), RH_BROADCAST_ADDRESS))
+      {
+      }
+    }
   }
+  printf("\n Test has ended \n");
+  gpioTerminate();
+  return 0;
+}
+
+void sig_handler(int sig)
+{
+  flag = 1;
 }
