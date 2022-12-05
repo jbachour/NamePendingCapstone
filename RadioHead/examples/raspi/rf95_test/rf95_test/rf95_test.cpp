@@ -57,7 +57,7 @@ bool myturn = false;
 // myturn = true;
 // }
 
-std::string path = "/media/node4/nodessd/Node Data/";
+std::string path = "/media/node4/node4ssd/Node Data/";
 std::string fileName = "";
 std::string packetTimeStamp = "packetTimeStamp";
 std::string logTimeStamp = "logFileTimeStamp";
