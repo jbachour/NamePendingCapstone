@@ -153,7 +153,7 @@ int main(int argc, const char *argv[])
         Serial.print(from, HEX);
         Serial.print(": ");
         Serial.println((char *)buf);
-        rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
+        rf95.waitAvailableTimeout(2000); // wait time available inside of 15s
         state = 5;
       }
       else if (millis() - retrystarttime >= retrysend && (millis() - startturntimer <= turntimer))
@@ -196,7 +196,7 @@ int main(int argc, const char *argv[])
           Serial.print(from, HEX);
           Serial.print(": ");
           Serial.println((char *)buf);
-          rf95.waitAvailableTimeout(1000);
+          rf95.waitAvailableTimeout(2000);
           state = 1; // client
           startturntimer = millis();
         }
@@ -213,7 +213,7 @@ int main(int argc, const char *argv[])
           Serial.print(": ");
           Serial.println((char *)buf);
           // printf("this is to %d", to);
-          rf95.waitAvailableTimeout(1000);
+          rf95.waitAvailableTimeout(2000);
           state = 3;
         }
       }
@@ -337,17 +337,17 @@ int main(int argc, const char *argv[])
       uint8_t dest;
       uint8_t id;
       uint8_t flags;
-      uint8_t arr[sizeof(buf) - 1];
       bool recvd = false;
       // join-recv start time for 10 second timeout
       if (manager.recvfrom(buf, &len, &from, &dest, &id, &flags))
       {
+        uint8_t arr[sizeof(buf) - 1];
         // sacar la info recibida del array
         // network session key, nodes and status of nodes in the network
         // cambiar a recv mode normal esperando mensaje que es mi turno
         if (flags == RH_FLAGS_APPLICATION_SPECIFIC)
         {
-          NSK = buf[0];
+          NSK = (int) buf[0];
           // take from buf nodes that are active in network
           for (int i = 1; i < len; i++)
           {
@@ -355,7 +355,7 @@ int main(int argc, const char *argv[])
             {
               break;
             }
-            arr[i - 1] = buf[i];
+            arr[i - 1] = (int) buf[i];
           }
         }
         std::map<int, bool>::iterator itr;
@@ -367,7 +367,7 @@ int main(int argc, const char *argv[])
             itr->second = true;
           }
         }
-        rf95.waitAvailableTimeout(1000);
+        rf95.waitAvailableTimeout(2000);
         retry = 0;
         recvd = true;
       }
@@ -407,15 +407,21 @@ int main(int argc, const char *argv[])
           i++;
         }
       }
+      Serial.println((char *)buf);
       // tiene que ser diferente flag para que otros nodos no
       rf95.setHeaderFlags(RH_FLAGS_APPLICATION_SPECIFIC);
       manager.sendto(data, sizeof(data), _from);
-      rf95.waitPacketSent();
+      rf95.waitPacketSent(1000);
       state = 4;
       if (two_nodes)
       {
         state = 5;
         two_nodes = false;
+      }
+      itr = node_status_map.find(_from);
+      if (itr != node_status_map.end())
+      {
+        itr->second = true;
       }
       printf("join send ack end\n");
     }
@@ -424,6 +430,12 @@ int main(int argc, const char *argv[])
       NSK = random(1000, 9999);
       // go to recv state, wait for a join request
       state = 4;
+      std::map<int, bool>::iterator itr;
+      itr = node_status_map.find(THIS_NODE_ADDRESS);
+      if (itr != node_status_map.end())
+      {
+        itr->second = true;
+      }
       printf("created network\n");
     }
     else if (state == 11) // recv node join req, send join-ack, tell new node its his turn?
@@ -438,7 +450,7 @@ int main(int argc, const char *argv[])
       {
         if (flags == RH_FLAGS_APPLICATION_SPECIFIC)
         {
-        rf95.waitAvailableTimeout(1000);
+        rf95.waitAvailableTimeout(2000);
         state = 9;
         two_nodes = true;
         }
