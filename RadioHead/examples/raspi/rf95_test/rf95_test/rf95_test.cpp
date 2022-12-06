@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#include <map>
+#include <string>
 
 // Function Definitions
 void sig_handler(int sig);
@@ -28,13 +30,13 @@ void sig_handler(int sig);
 #define SERVER_ADDRESS_5 6
 
 // // Network of 6 nodes
-// map<string, bool> node_status_map;
-// #define THIS_NODE_ADDRESS 111
-// #define NODE2_ADDRESS 222
-// #define NODE3_ADDRESS 333
-// #define NODE4_ADDRESS 444
-// #define NODE5_ADDRESS 555
-// #define NODE6_ADDRESS 666
+std::map<std::string, bool> node_status_map;
+#define THIS_NODE_ADDRESS 111
+#define NODE2_ADDRESS 222
+#define NODE3_ADDRESS 333
+#define NODE4_ADDRESS 444
+#define NODE5_ADDRESS 555
+#define NODE6_ADDRESS 666
 
 // RFM95 Configuration
 #define RFM95_FREQUENCY 915.00
