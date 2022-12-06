@@ -30,7 +30,7 @@ void sig_handler(int sig);
 #define SERVER_ADDRESS_5 6
 
 // // Network of 6 nodes
-std::map<std::string, bool> node_status_map;
+std::map<int, bool> node_status_map;
 #define THIS_NODE_ADDRESS 111
 #define NODE2_ADDRESS 222
 #define NODE3_ADDRESS 333
@@ -51,7 +51,7 @@ RHMesh manager(rf95, CLIENT_ADDRESS);
 int flag = 0;
 
 // indicates if it's the node's turn to transmit or not
-int state = 1;
+int state = 7;
 
 // Main Function
 int main(int argc, const char *argv[])
@@ -95,19 +95,20 @@ int main(int argc, const char *argv[])
   /* End Manager/Driver settings code */
 
   /*Node map status initialise*/
-  node_status_map.insert(pair<int, bool>(THIS_NODE_ADDRESS, false));
-  node_status_map.insert(pair<int, bool>(NODE2_ADDRESS, false));
-  node_status_map.insert(pair<int, bool>(NODE3_ADDRESS, false));
-  node_status_map.insert(pair<int, bool>(NODE4_ADDRESS, false));
-  node_status_map.insert(pair<int, bool>(NODE5_ADDRESS, false));
-  node_status_map.insert(pair<int, bool>(NODE6_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(THIS_NODE_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE2_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE3_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE4_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE5_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE6_ADDRESS, false));
 
   // Network Session Key (4 digits)
   uint8_t NSK;
+  uint8_t _from;
 
   /* Placeholder Message  */
   uint8_t data[] = "Hello World!";
-  uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
+  uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
   /* End Placeholder Message */
 
   // timeouts
@@ -116,6 +117,10 @@ int main(int argc, const char *argv[])
   unsigned long startturntimer;
   unsigned long turntimer = 15000;
   unsigned long resendtimer = 10000;
+  unsigned long starttime;
+
+  int retry = 0;
+  bool two_nodes = false;
 
   while (!flag)
   {
@@ -181,11 +186,10 @@ int main(int argc, const char *argv[])
     else if (state == 4) // recv
     {
       uint8_t len = sizeof(buf);
-      uint8_t from, to;
+      uint8_t from, to, dest, id, flags;
 
-      if (manager.recvfrom(buf, &len, &from, &to))
+      if (manager.recvfrom(buf, &len, &from, &to, &id, &flags))
       {
-
         if (to == SERVER_ADDRESS_1)
         {
           Serial.print("got message THAT ITS MY TURN : 0x");
@@ -195,6 +199,12 @@ int main(int argc, const char *argv[])
           rf95.waitAvailableTimeout(1000);
           state = 1; // client
           startturntimer = millis();
+        }
+        // might need to change bc of same flags
+        else if (flags == RH_FLAGS_APPLICATION_SPECIFIC)
+        {
+          state = 9;
+          _from = from;
         }
         else
         {
@@ -208,17 +218,83 @@ int main(int argc, const char *argv[])
         }
       }
     }
-    else if (state == 5) // send broadcast
+    else if (state == 5) // send turn broadcast
     {
-      uint8_t data[] = "Node 2";
-      uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
-
-      if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
+      uint8_t data[7];
+      std::map<int, bool>::iterator itr;
+      if ((itr = node_status_map.find(NODE2_ADDRESS))->second == true)
       {
-        rf95.waitPacketSent();
-        Serial.print("sent turn to server 1");
-        state = 4;
+        data[7] = 'Node 2';
+        if (manager.sendto(data, sizeof(data), itr->first))
+          {
+            rf95.waitPacketSent();
+            Serial.print("sent turn to server 2");
+            state = 4;
+          }
       }
+      else if ((itr = node_status_map.find(NODE3_ADDRESS))->second == true)
+      {
+        data[7] = 'Node 3';
+        if (manager.sendto(data, sizeof(data), itr->first))
+          {
+            rf95.waitPacketSent();
+            Serial.print("sent turn to server 3");
+            state = 4;
+          }
+      }
+      else if ((itr = node_status_map.find(NODE4_ADDRESS))->second == true)
+      {
+        data[7] = 'Node 4';
+        if (manager.sendto(data, sizeof(data), itr->first))
+          {
+            rf95.waitPacketSent();
+            Serial.print("sent turn to server 4");
+            state = 4;
+          }
+      }
+      else if ((itr = node_status_map.find(NODE5_ADDRESS))->second == true)
+      {
+        data[7] = 'Node 5';
+        if (manager.sendto(data, sizeof(data), itr->first))
+          {
+            rf95.waitPacketSent();
+            Serial.print("sent turn to server 5");
+            state = 4;
+          }
+      }
+      else if ((itr = node_status_map.find(NODE6_ADDRESS))->second == true)
+      {
+        data[7] = 'Node 6';
+        if (manager.sendto(data, sizeof(data), itr->first))
+          {
+            rf95.waitPacketSent();
+            Serial.print("sent turn to server 6");
+            state = 4;
+          }
+      }
+      else
+      {
+        state = 11; //you are the only node in the network. wait for a join req
+      }
+      // for (itr = node_status_map.find(THIS_NODE_ADDRESS); itr != node_status_map.end(); ++itr)
+      // {
+      //   if (itr->second == true)
+      //   {
+      //     if (manager.sendto(data, sizeof(data), itr->first))
+      //     {
+      //       rf95.waitPacketSent();
+      //       Serial.print("sent turn to server 1");
+      //       state = 4;
+      //     }
+      //   }
+      // }
+
+      // if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
+      // {
+      //   rf95.waitPacketSent();
+      //   Serial.print("sent turn to server 1");
+      //   state = 4;
+      // }
       retrystarttime = millis();
     }
     else if (state == 6) // retry send
@@ -240,25 +316,31 @@ int main(int argc, const char *argv[])
     else if (state == 7) // join-send
     {
       // join request data
-      uint8_t join[5] = THIS_NODE_ADDRESS;
+      printf("join send start\n");
+      uint8_t join[5];
+      join[0] = THIS_NODE_ADDRESS;
 
       /*send a broadcast with a join request message and setting join request flag*/
       rf95.setHeaderFlags(RH_FLAGS_APPLICATION_SPECIFIC);
-      manager.sendto(data, sizeof(join), RH_BROADCAST_ADDRESS);
+      manager.sendto(join, sizeof(join), RH_BROADCAST_ADDRESS);
       rf95.waitPacketSent();
       // change to join-recv state
-      state = ;
+      state = 8;
+      starttime = millis();
+      printf("join send end\n");
     }
     else if (state == 8) // join-recv-ack
     {
+      printf("join recv ack start\n");
       uint8_t len = sizeof(buf);
       uint8_t from;
       uint8_t dest;
       uint8_t id;
       uint8_t flags;
+      uint8_t arr[sizeof(buf) - 1];
+      bool recvd = false;
       // join-recv start time for 10 second timeout
-      unsigned long starttime = millis();
-      if (manager.recvfrom(buf, &len, &from, &dest, &id, &flags);)
+      if (manager.recvfrom(buf, &len, &from, &dest, &id, &flags))
       {
         // sacar la info recibida del array
         // network session key, nodes and status of nodes in the network
@@ -269,24 +351,37 @@ int main(int argc, const char *argv[])
           // take from buf nodes that are active in network
           for (int i = 1; i < len; i++)
           {
-            if (buf[i] == "\0")
+            if (buf[i] == '\0')
             {
               break;
             }
             arr[i - 1] = buf[i];
           }
-          // forma de dividir contenido de array cada 2 cosas
-          // verificar el tamano sin nsk para saber cuantos nodos hay
-
-          // loop y cada dos index hacer funcion de verificar map?
+        }
+        std::map<int, bool>::iterator itr;
+        for (int i = 0; i >= sizeof(arr); i++)
+        {
+          itr = node_status_map.find(arr[i]);
+          if (itr != node_status_map.end())
+          {
+            itr->second = true;
+          }
         }
         rf95.waitAvailableTimeout(1000);
+        retry = 0;
+        recvd = true;
       }
-      // if ive sent join-send more than 5 times create nertwork
-      if (retry > 5)
+      // if ive sent join-send more than 7 times create nertwork
+      if (retry > 2)
       {
         // change to create new network state
-        state = newnet;
+        state = 10;
+        retry = 0;
+      }
+      else if(recvd)
+      {
+        state = 4;
+        recvd = false;
       }
       // wait 10 seconds to receive join request ack
       // if no ack received switch back to join-send state
@@ -295,16 +390,60 @@ int main(int argc, const char *argv[])
         state = 7;
         retry++;
       }
+      printf("join recv ack end\n");
     }
     else if (state == 9) // join-send-ack
     {
-      
+      printf("join send ack start\n");
+      uint8_t data[RH_RF95_MAX_MESSAGE_LEN];
+      std::map<int, bool>::iterator itr;
+      int i = 1;
+      data[0] = NSK;
+      for (itr = node_status_map.begin(); itr != node_status_map.end(); ++itr)
+      {
+        if (itr->second == true)
+        {
+          data[i] = itr->first;
+          i++;
+        }
+      }
+      // tiene que ser diferente flag para que otros nodos no
+      rf95.setHeaderFlags(RH_FLAGS_APPLICATION_SPECIFIC);
+      manager.sendto(data, sizeof(data), _from);
+      rf95.waitPacketSent();
+      state = 4;
+      if (two_nodes)
+      {
+        state = 5;
+        two_nodes = false;
+      }
+      printf("join send ack end\n");
     }
     else if (state == 10) // create new network
     {
       NSK = random(1000, 9999);
-      // go to recv state? send state?
-      state = ;
+      // go to recv state, wait for a join request
+      state = 4;
+      printf("created network\n");
+    }
+    else if (state == 11) // recv node join req, send join-ack, tell new node its his turn?
+    {
+      printf("recv node join req send join ack start\n");
+      uint8_t len = sizeof(buf);
+      uint8_t from;
+      uint8_t dest;
+      uint8_t id;
+      uint8_t flags;
+      if (manager.recvfrom(buf, &len, &from, &dest, &id, &flags))
+      {
+        if (flags == RH_FLAGS_APPLICATION_SPECIFIC)
+        {
+        rf95.waitAvailableTimeout(1000);
+        state = 9;
+        two_nodes = true;
+        }
+      }
+      printf("recv node join req send join ack end\n");
     }
   }
   printf("\n Test has ended \n");
