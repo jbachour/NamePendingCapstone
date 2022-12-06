@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#include <iostream>
+#include <fstream>
+#include <array>
+#include <string.h>
+#include <time.h>
 
 // Function Definitions
 void sig_handler(int sig);
@@ -39,12 +44,159 @@ RHMesh manager(rf95, CLIENT_ADDRESS);
 // Flag for Ctrl-C
 int flag = 0;
 
+std::string path = "/media/node2/node2ssd/Node Data/";
+std::string fileName = "";
+std::string packetTimeStamp = "packetTimeStamp";
+std::string logTimeStamp = "logFileTimeStamp";
+std::string nodeId = "1";
+
 // indicates if it's the node's turn to transmit or not
 int state = 1;
+
+struct DNP3Packet
+{
+  std::string sync;
+  std::string length;
+  std::string link_control;
+  std::string destination_address;
+  std::string source_address;
+  std::string crc;
+  std::string phase_angle;
+  std::string phase_on_each_bus;
+  std::string power_flow_on_each_transmission_line;
+  std::string substation_load;
+  std::string substation_component_status;
+  std::string time_stamp;
+};
+
+// Create a timestamp using the computer's date and time and returns it as a sting.
+// Recieved a string that would tell the fuction which format to use for the timestamp.
+std::string getCurrentDateTime(std::string s)
+{
+
+  time_t now = time(0);
+  struct tm timeStruct;
+  char timeStamp[20];
+  timeStruct = *localtime(&now);
+
+  // Log file timestamp
+  if (s == "logFileTimeStamp")
+  {
+    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d %H:%M", &timeStruct);
+  }
+  // Packet timestamp
+  else if (s == "packetTimeStamp")
+  {
+    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M", &timeStruct);
+  }
+
+  return std::string(timeStamp);
+}
+
+// Recieved a array containing the data from the LoRa packet.
+// It stored the data in a struct simulating the DNP3Packet and returns it.
+DNP3Packet DNP3PacketGenerator(std::array<std::string, 6> packetContent)
+{
+
+  DNP3Packet packet;
+
+  // DNP3Packet header
+  packet.sync = "Sync";
+  packet.length = "Length";
+  packet.link_control = "Link Contol";
+  packet.destination_address = "Destination Adress";
+  packet.source_address = "Source Adress";
+  packet.crc = "CRC";
+
+  // DNP3Packet data
+  packet.phase_angle = packetContent[0];
+  packet.phase_on_each_bus = packetContent[1];
+  ;
+  packet.power_flow_on_each_transmission_line = packetContent[2];
+  packet.substation_load = packetContent[3];
+  packet.substation_component_status = packetContent[4];
+
+  // DNP3Packet timestamp
+  packet.time_stamp = getCurrentDateTime(packetTimeStamp);
+
+  return packet;
+}
+
+// Recieved the array where the data of the LoRa packet is stored when the message is send and the timestamp of when the packet was created.
+// Extracts the data from the packet and returns a string array with the data and the timestamp of the packet
+std::array<std::string, 6> packetReader(uint8_t data[], std::string timeStamp)
+{
+
+  std::array<std::string, 6> packetContent;
+
+  packetContent[0] = std::to_string(int(data[0]));
+  packetContent[1] = std::to_string(int(data[1]));
+  packetContent[2] = std::to_string(int(data[2]));
+  packetContent[3] = std::to_string(int(data[3]));
+  packetContent[4] = std::to_string(int(data[4]));
+  packetContent[5] = timeStamp;
+
+  return packetContent;
+}
+
+// This function recieve the path to the where the file is gonna be save, the name of the file and a array containing the data of the packetContent.
+// It creates a file of type csv and writes a file in csv format of the data from the packet.
+// It creates a log file of type txt that contains the date the file was created, the name of the file and its directory path .
+void fileWriter(std::string path, std::string fileName, std::array<std::string, 6> packetContent)
+{
+
+  std::string timeStamp = "";
+  bool fileWasCreated = false;
+  timeStamp = packetContent[5];
+
+  std::ofstream file;
+
+  // Concatenates the the path, fileName, timestamp and the type together into the variable fileDirectory.
+  std::string fileDirectory = path + fileName + timeStamp + ".csv";
+
+  // Creates the nodes data file. If the files doesn't exist it will be created and if the file exist it will just open it.
+  file.open(fileDirectory);
+
+  // If the file was able to be open it will write into the file else it will not write into the file.
+  // After the file was written it will close the file and chage the variable fileWasCreated to true.
+  if (file.is_open())
+  {
+    file << "Substation Parameters,Values,Measurtments Units \n";
+    file << "Phase angle," + packetContent[0] + "," + "degrees \n";
+    file << "Phase on each bus," + packetContent[1] + "," + "kW \n";
+    file << "Power flow on each transmission line," + packetContent[2] + "," + "MW \n";
+    file << "Substation load," + packetContent[3] + "," + "kW \n";
+    file << "Substation component status," + packetContent[4] + "," + "boolean \n";
+    file.close();
+    fileWasCreated = true;
+  }
+
+  // If fileWasCreated is true it will create and update the log file.
+  if (fileWasCreated)
+  {
+
+    // Creates the log file. If the files doesn't exist it will be created in append mode and if the file exist it will open it and update the contebts of the file.
+    file.open(path + "Node Data.log", std::ofstream ::app);
+
+    // If the file was able to be open it will write into the file else it will not write into the file.
+    // After the file was written it will close the file and chage the variable fileWasCreated to false.
+    if (file.is_open())
+    {
+      file << "[" + getCurrentDateTime(logTimeStamp) + "]" + " File created:[" << fileName + timeStamp + "]" + " File directory path:[" << fileDirectory + "]"
+                                                                                                                                                           "\n";
+      file.close();
+      fileWasCreated = false;
+    }
+  }
+}
 
 // Main Function
 int main(int argc, const char *argv[])
 {
+
+  std::array<std::string, 6> packetContent;
+  std::string timeStamp = "";
+  DNP3Packet packet;
 
   if (gpioInitialise() < 0) // pigpio library function that initiliazes gpio
   {
@@ -84,8 +236,27 @@ int main(int argc, const char *argv[])
   /* End Manager/Driver settings code */
 
   /* Placeholder Message  */
-  uint8_t data[] = "Hello World!";
+  uint8_t data[50] = "";
   uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
+
+  // Providing a seed value
+  srand((unsigned)time(NULL));
+
+  data[0] = 1 + (rand() % 91);
+  data[1] = 1 + (rand() % 101);
+  data[2] = 1 + (rand() % 101);
+  data[3] = 1 + (rand() % 101);
+  data[4] = 0 + (rand() % 2);
+
+  timeStamp = getCurrentDateTime(packetTimeStamp);
+
+  int j = 0;
+
+  for (int i = 5; i <= 20; i++)
+  {
+    data[i] = data[i] + timeStamp[j];
+    j++;
+  }
   /* End Placeholder Message */
 
   unsigned long retrystarttime;
@@ -136,7 +307,6 @@ int main(int argc, const char *argv[])
         state = 5; // send broadcast - tell next node its his turn
         printf("turn over \n");
       }
-
     }
     else if (state == 3) // send ack
     {
@@ -179,9 +349,58 @@ int main(int argc, const char *argv[])
           Serial.print(from, HEX);
           Serial.print(": ");
           Serial.println((char *)buf);
-          //printf("this is to %d", to);
+          // printf("this is to %d", to);
           rf95.waitAvailableTimeout(1000);
           state = 3;
+
+          packetContent = packetReader(data, timeStamp);
+
+          // Creates the name fro the file according to the id of the node that send the packet
+          if (nodeId == "1")
+          {
+            fileName = "Node1 Data ";
+          }
+          else if (nodeId == "2")
+          {
+            fileName = "Node2 Data ";
+          }
+          else if (nodeId == "3")
+          {
+            fileName = "Node3 Data ";
+          }
+          else if (nodeId == "4")
+          {
+            fileName = "Node4 Data ";
+          }
+          else if (nodeId == "5")
+          {
+            fileName = "Node5 Data ";
+          }
+          else if (nodeId == "6")
+          {
+            fileName = "Node6 Data ";
+          }
+
+          fileWriter(path, fileName, packetContent);
+
+          packet = DNP3PacketGenerator(packetContent);
+
+          // Prints to terminal the content of the DNP3Packet
+          std::cout << "DNP3Packet \n";
+          std::cout << packet.sync << "\n";
+          std::cout << packet.length << "\n";
+          std::cout << packet.link_control << "\n";
+          std::cout << packet.destination_address << "\n";
+          std::cout << packet.source_address << "\n";
+          std::cout << packet.crc << "\n";
+
+          std::cout << packet.phase_angle << "\n";
+          std::cout << packet.phase_on_each_bus << "\n";
+          std::cout << packet.power_flow_on_each_transmission_line << "\n";
+          std::cout << packet.substation_load << "\n";
+          std::cout << packet.substation_component_status << "\n";
+
+          std::cout << packet.time_stamp << "\n";
         }
       }
     }
