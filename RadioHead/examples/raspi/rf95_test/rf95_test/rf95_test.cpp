@@ -108,7 +108,7 @@ int main(int argc, const char *argv[])
 
   /* Placeholder Message  */
   uint8_t data[] = "Hello World!";
-  uint8_t buf[RH_RF95_MAX_MESSAGE_LEN];
+  uint8_t buf[50];
   /* End Placeholder Message */
 
   // timeouts
@@ -321,7 +321,7 @@ int main(int argc, const char *argv[])
       join[0] = THIS_NODE_ADDRESS;
 
       /*send a broadcast with a join request message and setting join request flag*/
-      rf95.setHeaderFlags(RH_FLAGS_APPLICATION_SPECIFIC);
+      manager.setHeaderFlags(RH_FLAGS_APPLICATION_SPECIFIC);
       manager.sendto(join, sizeof(join), RH_BROADCAST_ADDRESS);
       rf95.waitPacketSent();
       // change to join-recv state
@@ -331,7 +331,7 @@ int main(int argc, const char *argv[])
     }
     else if (state == 8) // join-recv-ack
     {
-      printf("join recv ack start\n");
+      //printf("join recv ack start\n");
       uint8_t len = sizeof(buf);
       uint8_t from;
       uint8_t dest;
@@ -390,12 +390,12 @@ int main(int argc, const char *argv[])
         state = 7;
         retry++;
       }
-      printf("join recv ack end\n");
+      // printf("join recv ack end\n");
     }
     else if (state == 9) // join-send-ack
     {
       printf("join send ack start\n");
-      uint8_t data[RH_RF95_MAX_MESSAGE_LEN];
+      uint8_t data[50];
       std::map<int, bool>::iterator itr;
       int i = 1;
       data[0] = NSK;
@@ -409,7 +409,7 @@ int main(int argc, const char *argv[])
       }
       Serial.println((char *)buf);
       // tiene que ser diferente flag para que otros nodos no
-      rf95.setHeaderFlags(RH_FLAGS_APPLICATION_SPECIFIC);
+      manager.setHeaderFlags(RH_FLAGS_APPLICATION_SPECIFIC);
       manager.sendto(data, sizeof(data), _from);
       rf95.waitPacketSent(1000);
       state = 4;
