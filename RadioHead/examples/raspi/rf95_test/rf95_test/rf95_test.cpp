@@ -27,6 +27,15 @@ void sig_handler(int sig);
 #define SERVER_ADDRESS_4 5
 #define SERVER_ADDRESS_5 6
 
+// // Network of 6 nodes
+// map<string, bool> node_status_map;
+// #define THIS_NODE_ADDRESS 111
+// #define NODE2_ADDRESS 222
+// #define NODE3_ADDRESS 333
+// #define NODE4_ADDRESS 444
+// #define NODE5_ADDRESS 555
+// #define NODE6_ADDRESS 666
+
 // RFM95 Configuration
 #define RFM95_FREQUENCY 915.00
 #define RFM95_TXPOWER 14
@@ -83,15 +92,28 @@ int main(int argc, const char *argv[])
 
   /* End Manager/Driver settings code */
 
+  /*Node map status initialise*/
+  node_status_map.insert(pair<int, bool>(THIS_NODE_ADDRESS, false));
+  node_status_map.insert(pair<int, bool>(NODE2_ADDRESS, false));
+  node_status_map.insert(pair<int, bool>(NODE3_ADDRESS, false));
+  node_status_map.insert(pair<int, bool>(NODE4_ADDRESS, false));
+  node_status_map.insert(pair<int, bool>(NODE5_ADDRESS, false));
+  node_status_map.insert(pair<int, bool>(NODE6_ADDRESS, false));
+
+  // Network Session Key (4 digits)
+  uint8_t NSK;
+
   /* Placeholder Message  */
   uint8_t data[] = "Hello World!";
   uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
   /* End Placeholder Message */
 
+  // timeouts
   unsigned long retrystarttime;
   unsigned long retrysend = 4000;
   unsigned long startturntimer;
   unsigned long turntimer = 15000;
+  unsigned long resendtimer = 10000;
 
   while (!flag)
   {
@@ -136,7 +158,6 @@ int main(int argc, const char *argv[])
         state = 5; // send broadcast - tell next node its his turn
         printf("turn over \n");
       }
-
     }
     else if (state == 3) // send ack
     {
@@ -179,7 +200,7 @@ int main(int argc, const char *argv[])
           Serial.print(from, HEX);
           Serial.print(": ");
           Serial.println((char *)buf);
-          //printf("this is to %d", to);
+          // printf("this is to %d", to);
           rf95.waitAvailableTimeout(1000);
           state = 3;
         }
@@ -213,6 +234,75 @@ int main(int argc, const char *argv[])
         state = 2;
       }
       retrystarttime = millis();
+    }
+    else if (state == 7) // join-send
+    {
+      // join request data
+      uint8_t join[5] = THIS_NODE_ADDRESS;
+
+      /*send a broadcast with a join request message and setting join request flag*/
+      rf95.setHeaderFlags(RH_FLAGS_APPLICATION_SPECIFIC);
+      manager.sendto(data, sizeof(join), RH_BROADCAST_ADDRESS);
+      rf95.waitPacketSent();
+      // change to join-recv state
+      state = ;
+    }
+    else if (state == 8) // join-recv-ack
+    {
+      uint8_t len = sizeof(buf);
+      uint8_t from;
+      uint8_t dest;
+      uint8_t id;
+      uint8_t flags;
+      // join-recv start time for 10 second timeout
+      unsigned long starttime = millis();
+      if (manager.recvfrom(buf, &len, &from, &dest, &id, &flags);)
+      {
+        // sacar la info recibida del array
+        // network session key, nodes and status of nodes in the network
+        // cambiar a recv mode normal esperando mensaje que es mi turno
+        if (flags == RH_FLAGS_APPLICATION_SPECIFIC)
+        {
+          NSK = buf[0];
+          // take from buf nodes that are active in network
+          for (int i = 1; i < len; i++)
+          {
+            if (buf[i] == "\0")
+            {
+              break;
+            }
+            arr[i - 1] = buf[i];
+          }
+          // forma de dividir contenido de array cada 2 cosas
+          // verificar el tamano sin nsk para saber cuantos nodos hay
+
+          // loop y cada dos index hacer funcion de verificar map?
+        }
+        rf95.waitAvailableTimeout(1000);
+      }
+      // if ive sent join-send more than 5 times create nertwork
+      if (retry > 5)
+      {
+        // change to create new network state
+        state = newnet;
+      }
+      // wait 10 seconds to receive join request ack
+      // if no ack received switch back to join-send state
+      else if (millis() - starttime >= resendtimer)
+      {
+        state = 7;
+        retry++;
+      }
+    }
+    else if (state == 9) // join-send-ack
+    {
+      
+    }
+    else if (state == 10) // create new network
+    {
+      NSK = random(1000, 9999);
+      // go to recv state? send state?
+      state = ;
     }
   }
   printf("\n Test has ended \n");
