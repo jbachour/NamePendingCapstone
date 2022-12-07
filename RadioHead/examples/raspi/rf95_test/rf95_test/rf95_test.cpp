@@ -82,12 +82,12 @@ std::string getCurrentDateTime(std::string s)
   // Log file timestamp
   if (s == "logFileTimeStamp")
   {
-    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d %H:%M", &timeStruct);
+    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d %H:%M:%S", &timeStruct);
   }
   // Packet timestamp
   else if (s == "packetTimeStamp")
   {
-    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M", &timeStruct);
+    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M-%S", &timeStruct);
   }
 
   return std::string(timeStamp);
@@ -247,12 +247,17 @@ int main(int argc, const char *argv[])
   data[2] = 1 + (rand() % 101);
   data[3] = 1 + (rand() % 101);
   data[4] = 0 + (rand() % 2);
+  printf("%d ", data[0]);
+  printf("%d ", data[1]);
+  printf("%d ", data[2]);
+  printf("%d ", data[3]);
+  printf("%d ", data[4]);
 
   timeStamp = getCurrentDateTime(packetTimeStamp);
 
   int j = 0;
 
-  for (int i = 5; i <= 20; i++)
+  for (int i = 5; i <= 23; i++)
   {
     data[i] = data[i] + timeStamp[j];
     j++;
@@ -260,7 +265,7 @@ int main(int argc, const char *argv[])
   /* End Placeholder Message */
 
   unsigned long retrystarttime;
-  unsigned long retrysend = 4000;
+  unsigned long retrysend = 8000;
   unsigned long startturntimer;
   unsigned long turntimer = 15000;
 
