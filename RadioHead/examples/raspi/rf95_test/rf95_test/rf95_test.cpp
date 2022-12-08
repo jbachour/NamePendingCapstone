@@ -87,7 +87,7 @@ std::string getCurrentDateTime(std::string s)
   // Packet timestamp
   else if (s == "packetTimeStamp")
   {
-    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M-%S", &timeStruct);
+    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M:%S", &timeStruct);
   }
 
   return std::string(timeStamp);
@@ -248,6 +248,11 @@ int main(int argc, const char *argv[])
   data[2] = 1 + (rand() % 101);
   data[3] = 1 + (rand() % 101);
   data[4] = 0 + (rand() % 2);
+  printf("%d ", data[0]);
+  printf("%d ", data[1]);
+  printf("%d ", data[2]);
+  printf("%d ", data[3]);
+  printf("%d ", data[4]);
 
   timeStamp = getCurrentDateTime(packetTimeStamp);
 
