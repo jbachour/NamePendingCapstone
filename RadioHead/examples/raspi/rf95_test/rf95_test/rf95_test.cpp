@@ -39,19 +39,19 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHMesh manager(rf95, CLIENT_ADDRESS);
+RHMesh manager(rf95, SERVER_ADDRESS_1);
 
 // Flag for Ctrl-C
 int flag = 0;
 
-std::string path = "/media/node2/node2ssd/Node Data/";
+std::string path = "/media/node3/node3ssd/Node Data/";
 std::string fileName = "";
 std::string packetTimeStamp = "packetTimeStamp";
 std::string logTimeStamp = "logFileTimeStamp";
-std::string nodeId = "1";
+std::string nodeId = "3";
 
 // indicates if it's the node's turn to transmit or not
-int state = 1;
+int state = 4;
 
 struct DNP3Packet
 {
@@ -82,12 +82,12 @@ std::string getCurrentDateTime(std::string s)
   // Log file timestamp
   if (s == "logFileTimeStamp")
   {
-    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d %H:%M", &timeStruct);
+    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d %H:%M:%S", &timeStruct);
   }
   // Packet timestamp
   else if (s == "packetTimeStamp")
   {
-    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M", &timeStruct);
+    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M-%S", &timeStruct);
   }
 
   return std::string(timeStamp);
@@ -237,6 +237,7 @@ int main(int argc, const char *argv[])
 
   /* Placeholder Message  */
   uint8_t data[50] = "";
+  uint8_t datalen = sizeof(data);
   uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
 
   // Providing a seed value
@@ -252,7 +253,7 @@ int main(int argc, const char *argv[])
 
   int j = 0;
 
-  for (int i = 5; i <= 20; i++)
+  for (int i = 5; i <= 23; i++)
   {
     data[i] = data[i] + timeStamp[j];
     j++;
@@ -260,22 +261,42 @@ int main(int argc, const char *argv[])
   /* End Placeholder Message */
 
   unsigned long retrystarttime;
-  unsigned long retrysend = 4000;
+  unsigned long retrysend = 10000;
   unsigned long startturntimer;
-  unsigned long turntimer = 15000;
+  unsigned long turntimer = 45000;
+
+  // global var
+  uint8_t from, to;
+  uint8_t buflen = sizeof(buf);
 
   while (!flag)
   {
 
     if (state == 1) // sending
     {
-      startturntimer = millis();
-      if (manager.sendto(data, sizeof(data), RH_BROADCAST_ADDRESS))
+      uint8_t data[50] = "";
+      data[0] = 1 + (rand() % 91);
+      data[1] = 1 + (rand() % 101);
+      data[2] = 1 + (rand() % 101);
+      data[3] = 1 + (rand() % 101);
+      data[4] = 0 + (rand() % 2);
+      int j = 0;
+      for (int i = 5; i <= 23; i++)
       {
+        data[i] = data[i] + timeStamp[j];
+        j++;
+      }
+      uint8_t datalen = sizeof(data);
+      startturntimer = millis();
+      if (manager.sendto(data, datalen, RH_BROADCAST_ADDRESS))
+      {
+        printf((char *)&data);
+        printf("\n");
+        printf("size %d\n", datalen);
         printf("Sending broadcast... \n");
         // Size of message
-        uint8_t len = sizeof(buf);
-        uint8_t from;
+        // uint8_t len = sizeof(buf);
+        // uint8_t from;
         // wait for packet to be sent
         rf95.waitPacketSent();
         printf("waited \n");
@@ -286,16 +307,17 @@ int main(int argc, const char *argv[])
     }
     else if (state == 2) // recv ack
     {
-      uint8_t len = sizeof(buf);
-      uint8_t from;
+      // uint8_t len = sizeof(buf);
+      // uint8_t from;
 
-      if (manager.recvfrom(buf, &len, &from))
+      if (manager.recvfrom(buf, &buflen, &from))
       {
+        rf95.waitAvailableTimeout(1000);
         Serial.print("got ack from : 0x");
         Serial.print(from, HEX);
         Serial.print(": ");
-        Serial.println((char *)buf);
-        rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
+        Serial.println((char *)&buf);
+        //rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
         state = 5;
       }
       else if (millis() - retrystarttime >= retrysend && (millis() - startturntimer <= turntimer))
@@ -310,14 +332,17 @@ int main(int argc, const char *argv[])
     }
     else if (state == 3) // send ack
     {
-      uint8_t from;
-      if (manager.sendto(data, sizeof(data), from))
+      // uint8_t from;
+      printf("from %d\n", from);
+      buflen = sizeof(buf);
+      // sleep(3);
+      if (manager.sendto(buf, buflen, from))
       {
 
         printf("Sending ack \n");
         // Size of message
-        uint8_t len = sizeof(buf);
-        uint8_t from;
+        // uint8_t len = sizeof(buf);
+        // uint8_t from;
         // wait for packet to be sent
         rf95.waitPacketSent();
         printf("waited \n");
@@ -327,33 +352,40 @@ int main(int argc, const char *argv[])
     }
     else if (state == 4) // recv
     {
-      uint8_t len = sizeof(buf);
-      uint8_t from, to;
+      // uint8_t len = sizeof(buf);
 
-      if (manager.recvfrom(buf, &len, &from, &to))
+      if (manager.recvfrom(buf, &buflen, &from, &to))
       {
-
-        if (to == SERVER_ADDRESS_1)
+        printf("len %d\n", buflen);
+        if (buflen <= 21)
         {
-          Serial.print("got message THAT ITS MY TURN : 0x");
-          Serial.print(from, HEX);
-          Serial.print(": ");
-          Serial.println((char *)buf);
-          rf95.waitAvailableTimeout(1000);
-          state = 1; // client
-          startturntimer = millis();
+          if ((int)buf[0] == SERVER_ADDRESS_1)
+          // if (to == SERVER_ADDRESS_1)
+          {
+            rf95.waitAvailableTimeout(1000);
+            Serial.print("got message THAT ITS MY TURN : 0x");
+            Serial.print(from, HEX);
+            Serial.print(": ");
+            printf("%d", (int) buf[0]);
+            printf("\n");
+            //rf95.waitAvailableTimeout(1000);
+            state = 1; // client
+            startturntimer = millis();
+          }
         }
         else
         {
+          rf95.waitAvailableTimeout(1000);
           Serial.print("got broadcast from : 0x");
           Serial.print(from, HEX);
           Serial.print(": ");
-          Serial.println((char *)buf);
-          // printf("this is to %d", to);
-          rf95.waitAvailableTimeout(1000);
+          printf((char *)&buf);
+          printf("\n");
+          printf("this is to %d\n", to);
+          //rf95.waitAvailableTimeout(1000);
           state = 3;
 
-          packetContent = packetReader(data, timeStamp);
+          packetContent = packetReader(buf, timeStamp);
 
           // Creates the name fro the file according to the id of the node that send the packet
           if (nodeId == "1")
@@ -402,29 +434,39 @@ int main(int argc, const char *argv[])
 
           std::cout << packet.time_stamp << "\n";
         }
+        // else
+        // {
+        //   printf("you're not supposed to be here!!!\n");
+        //   state = 4;
+        // }
+        printf("from %d\n", from);
       }
     }
     else if (state == 5) // send broadcast
     {
-      uint8_t data[] = "Node 2";
-      uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
-
-      if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
+      // sleep(3);
+      uint8_t turn[11];
+      turn[0] = CLIENT_ADDRESS;
+      uint8_t turnlen = sizeof(turn);
+      // uint8_t buf[50];
+      if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
       {
-        rf95.waitPacketSent();
-        Serial.print("sent turn to server 1");
+        printf("tx %d\n", rf95.txGood());
+        // rf95.waitPacketSent(2000);
+        Serial.print("sent turn to server 1\n");
+        rf95.setModeRx();
         state = 4;
       }
       retrystarttime = millis();
     }
     else if (state == 6) // retry send
     {
-      if (manager.sendto(data, sizeof(data), RH_BROADCAST_ADDRESS))
+      if (manager.sendto(data, datalen, RH_BROADCAST_ADDRESS))
       {
         printf("Sending retry... \n");
         // Size of message
-        uint8_t len = sizeof(buf);
-        uint8_t from;
+        // uint8_t len = sizeof(buf);
+        // uint8_t from;
         // wait for packet to be sent
         rf95.waitPacketSent();
         printf("waited \n");
