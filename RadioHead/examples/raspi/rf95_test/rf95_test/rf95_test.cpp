@@ -252,10 +252,10 @@ int main(int argc, const char *argv[])
       if ((itr = node_status_map.find(NODE3_ADDRESS))->second == true)
       {
         turn[1] = NODE3_ADDRESS;
+        printf("node3 turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
-           rf95.waitPacketSent();
-          Serial.print("sent turn to server 3");
+          printf("sent turn\n");
           state = 4;
           rf95.setModeRx();
         }
@@ -263,10 +263,10 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE4_ADDRESS))->second == true)
       {
         turn[1] = NODE4_ADDRESS;
+        printf("node4 turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
-          // rf95.waitPacketSent();
-          Serial.print("sent turn to server 4");
+          printf("sent turn\n");
           state = 4;
           rf95.setModeRx();
         }
@@ -274,10 +274,10 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE5_ADDRESS))->second == true)
       {
         turn[1] = NODE5_ADDRESS;
+        printf("node5 turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
-          // rf95.waitPacketSent();
-          Serial.print("sent turn to server 5");
+          printf("sent turn\n");
           state = 4;
           rf95.setModeRx();
         }
@@ -285,10 +285,10 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE6_ADDRESS))->second == true)
       {
         turn[1] = NODE6_ADDRESS;
+        printf("node6 turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
-          // rf95.waitPacketSent();
-          Serial.print("sent turn to server 6");
+          printf("sent turn\n");
           state = 4;
           rf95.setModeRx();
         }
@@ -300,8 +300,6 @@ int main(int argc, const char *argv[])
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
-         // rf95.waitPacketSent(1000);
-          //printf("sent turn to server 1");
           rf95.setModeRx();
           state = 4;
         }
