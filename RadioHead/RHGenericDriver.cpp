@@ -57,18 +57,12 @@ bool RHGenericDriver::waitAvailableTimeout(uint16_t timeout, uint16_t polldelay)
 
 bool RHGenericDriver::waitPacketSent()
 {
-    //Serial.println("stuck in txmode");
-    int counter = 0;
+    //printf("stuck in txmode");
     while (_mode == RHModeTx) {
-        // printf("inside while\n");
-        // printf("%d", counter);
-        // counter += 1;
-        // if (counter > 100) {
-        //     //printf("INSIDE IFJKFGNKDNGSKDFGNDKFGJ\n");
-        //     available();
-        // }
+        //printf("inside while\n");
 	YIELD; // Wait for any previous transmit to finish
     }
+    //printf("waited\n");
     return true;
 }
 
