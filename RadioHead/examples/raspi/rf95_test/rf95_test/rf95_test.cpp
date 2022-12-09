@@ -239,6 +239,7 @@ int main(int argc, const char *argv[])
   uint8_t data[50] = "";
   uint8_t datalen = sizeof(data);
   uint8_t buf[RH_MESH_MAX_MESSAGE_LEN];
+  //uint8_t buf[] = {0};
 
   // Providing a seed value
   srand((unsigned)time(NULL));
@@ -279,18 +280,18 @@ int main(int argc, const char *argv[])
 
     if (state == 1) // sending
     {
-      uint8_t data[50] = "";
-      data[0] = 1 + (rand() % 91);
-      data[1] = 1 + (rand() % 101);
-      data[2] = 1 + (rand() % 101);
-      data[3] = 1 + (rand() % 101);
-      data[4] = 0 + (rand() % 2);
-      int j = 0;
-      for (int i = 5; i <= 23; i++)
-      {
-        data[i] = data[i] + timeStamp[j];
-        j++;
-      }
+      // uint8_t data[50] = "";
+      // data[0] = 1 + (rand() % 91);
+      // data[1] = 1 + (rand() % 101);
+      // data[2] = 1 + (rand() % 101);
+      // data[3] = 1 + (rand() % 101);
+      // data[4] = 0 + (rand() % 2);
+      // int j = 0;
+      // for (int i = 5; i <= 23; i++)
+      // {
+      //   data[i] = data[i] + timeStamp[j];
+      //   j++;
+      // }
       uint8_t datalen = sizeof(data);
       startturntimer = millis();
       if (manager.sendto(data, datalen, RH_BROADCAST_ADDRESS))
@@ -358,11 +359,25 @@ int main(int argc, const char *argv[])
     else if (state == 4) // recv
     {
       // uint8_t len = sizeof(buf);
+      // uint8_t buf_1[50];
+      // uint8_t buf_1_len = sizeof(buf_1);
+      // uint8_t _buf[] = {50};
 
       if (manager.recvfrom(buf, &buflen, &from, &to))
       {
+        // int item_count = 0;
+        // for (int i = 0; i <= buflen; i++)
+        // {
+        //   if ((char *) _buf[i] == "/0")
+        //   {
+        //     break;
+        //   }
+        //   item_count++;
+        // }
+        
+        printf("%d\n", (int) buf[0]);
         printf("len %d\n", buflen);
-        if (buflen <= 21)
+        if (buflen <= 40)
         {
           if ((int)buf[0] == SERVER_ADDRESS_1)
           // if (to == SERVER_ADDRESS_1)
@@ -377,6 +392,7 @@ int main(int argc, const char *argv[])
             state = 1; // client
             startturntimer = millis();
           }
+          buflen = 50;
         }
         else
         {
@@ -445,13 +461,21 @@ int main(int argc, const char *argv[])
         //   state = 4;
         // }
         printf("from %d\n", from);
+      //   for (int i = 0; i <= buflen; i++){
+      //     if ((char *) _buf[i] == "/0"){
+      //       break;
+      //     }
+      //     buf[i] = buf_1[i];
+      //   }
       }
     }
     else if (state == 5) // send broadcast
     {
       // sleep(3);
-      uint8_t turn[11];
-      turn[0] = CLIENT_ADDRESS;
+      uint8_t turn[10];
+      //uint8_t turn[2 + rand() % 40];
+      //uint8_t turn[] = {0};
+      turn[0] = SERVER_ADDRESS_2;
       uint8_t turnlen = sizeof(turn);
       // uint8_t buf[50];
       if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
