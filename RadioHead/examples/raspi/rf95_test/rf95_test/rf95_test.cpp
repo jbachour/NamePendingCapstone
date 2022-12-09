@@ -39,19 +39,19 @@ void sig_handler(int sig);
 // Singleton instance of the radio driver
 RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
-RHMesh manager(rf95, SERVER_ADDRESS_1);
+RHMesh manager(rf95, CLIENT_ADDRESS);
 
 // Flag for Ctrl-C
 int flag = 0;
 
-std::string path = "/media/node3/node3ssd/Node Data/";
+std::string path = "/media/node6/node6ssd/Node Data/";
 std::string fileName = "";
 std::string packetTimeStamp = "packetTimeStamp";
 std::string logTimeStamp = "logFileTimeStamp";
-std::string nodeId = "3";
+//std::string nodeId = "3";
 
 // indicates if it's the node's turn to transmit or not
-int state = 4;
+int state = 1;
 
 struct DNP3Packet
 {
@@ -87,7 +87,7 @@ std::string getCurrentDateTime(std::string s)
   // Packet timestamp
   else if (s == "packetTimeStamp")
   {
-    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M:%S", &timeStruct);
+    strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M-%S", &timeStruct);
   }
 
   return std::string(timeStamp);
@@ -242,29 +242,29 @@ int main(int argc, const char *argv[])
   //uint8_t buf[] = {0};
 
   // Providing a seed value
-  srand((unsigned)time(NULL));
+  // srand((unsigned)time(NULL));
 
-  data[0] = 1 + (rand() % 91);
-  data[1] = 1 + (rand() % 101);
-  data[2] = 1 + (rand() % 101);
-  data[3] = 1 + (rand() % 101);
-  data[4] = 0 + (rand() % 2);
-  printf("%d ", data[0]);
-  printf("%d ", data[1]);
-  printf("%d ", data[2]);
-  printf("%d ", data[3]);
-  printf("%d ", data[4]);
+  // data[0] = 1 + (rand() % 91);
+  // data[1] = 1 + (rand() % 101);
+  // data[2] = 1 + (rand() % 101);
+  // data[3] = 1 + (rand() % 101);
+  // data[4] = 0 + (rand() % 2);
+  // printf("%d ", data[0]);
+  // printf("%d ", data[1]);
+  // printf("%d ", data[2]);
+  // printf("%d ", data[3]);
+  // printf("%d ", data[4]);
 
-  timeStamp = getCurrentDateTime(packetTimeStamp);
+  // timeStamp = getCurrentDateTime(packetTimeStamp);
 
-  int j = 0;
+  // int j = 0;
 
-  for (int i = 5; i <= 23; i++)
-  {
-    data[i] = data[i] + timeStamp[j];
-    j++;
-  }
-  /* End Placeholder Message */
+  // for (int i = 5; i <= 23; i++)
+  // {
+  //   data[i] = data[i] + timeStamp[j];
+  //   j++;
+  // }
+  // /* End Placeholder Message */
 
   unsigned long retrystarttime;
   unsigned long retrysend = 10000;
@@ -280,18 +280,30 @@ int main(int argc, const char *argv[])
 
     if (state == 1) // sending
     {
-      // uint8_t data[50] = "";
-      // data[0] = 1 + (rand() % 91);
-      // data[1] = 1 + (rand() % 101);
-      // data[2] = 1 + (rand() % 101);
-      // data[3] = 1 + (rand() % 101);
-      // data[4] = 0 + (rand() % 2);
-      // int j = 0;
-      // for (int i = 5; i <= 23; i++)
-      // {
-      //   data[i] = data[i] + timeStamp[j];
-      //   j++;
-      // }
+      // Providing a seed value
+      srand((unsigned)time(NULL));
+
+      data[0] = 1 + (rand() % 91);
+      data[1] = 1 + (rand() % 101);
+      data[2] = 1 + (rand() % 101);
+      data[3] = 1 + (rand() % 101);
+      data[4] = 0 + (rand() % 2);
+      printf("%d ", data[0]);
+      printf("%d ", data[1]);
+      printf("%d ", data[2]);
+      printf("%d ", data[3]);
+      printf("%d ", data[4]);
+
+      timeStamp = getCurrentDateTime(packetTimeStamp);
+
+      int j = 0;
+
+      for (int i = 5; i <= 23; i++)
+      {
+        data[i] = data[i] + timeStamp[j];
+        j++;
+      }
+
       uint8_t datalen = sizeof(data);
       startturntimer = millis();
       if (manager.sendto(data, datalen, RH_BROADCAST_ADDRESS))
@@ -323,7 +335,21 @@ int main(int argc, const char *argv[])
         Serial.print(from, HEX);
         Serial.print(": ");
         Serial.println((char *)&buf);
-        //rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
+        int len = 0;
+
+        while(len < 23){
+          if(buf[0] == data[0]){
+            //std::cout << "They are equal \n";
+            len++;
+          }
+        }
+
+        if(len == 23){
+          fileName = "Node6 Data ";
+          packetContent = packetReader(buf, timeStamp);
+          fileWriter(path, fileName, packetContent);
+        }
+        // rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
         state = 5;
       }
       else if (millis() - retrystarttime >= retrysend && (millis() - startturntimer <= turntimer))
@@ -374,21 +400,21 @@ int main(int argc, const char *argv[])
         //   }
         //   item_count++;
         // }
-        
-        printf("%d\n", (int) buf[0]);
+
+        printf("%d\n", (int)buf[0]);
         printf("len %d\n", buflen);
         if (buflen <= 40)
         {
-          if ((int)buf[0] == SERVER_ADDRESS_1)
+          if ((int)buf[0] == CLIENT_ADDRESS)
           // if (to == SERVER_ADDRESS_1)
           {
             rf95.waitAvailableTimeout(1000);
             Serial.print("got message THAT ITS MY TURN : 0x");
             Serial.print(from, HEX);
             Serial.print(": ");
-            printf("%d", (int) buf[0]);
+            printf("%d", (int)buf[0]);
             printf("\n");
-            //rf95.waitAvailableTimeout(1000);
+            // rf95.waitAvailableTimeout(1000);
             state = 1; // client
             startturntimer = millis();
           }
@@ -403,33 +429,33 @@ int main(int argc, const char *argv[])
           printf((char *)&buf);
           printf("\n");
           printf("this is to %d\n", to);
-          //rf95.waitAvailableTimeout(1000);
+          // rf95.waitAvailableTimeout(1000);
           state = 3;
 
           packetContent = packetReader(buf, timeStamp);
 
           // Creates the name fro the file according to the id of the node that send the packet
-          if (nodeId == "1")
+          if ((int)from == 1)
           {
             fileName = "Node1 Data ";
           }
-          else if (nodeId == "2")
+          else if ((int)from == 2)
           {
             fileName = "Node2 Data ";
           }
-          else if (nodeId == "3")
+          else if ((int)from == 3)
           {
             fileName = "Node3 Data ";
           }
-          else if (nodeId == "4")
+          else if ((int)from == 4)
           {
             fileName = "Node4 Data ";
           }
-          else if (nodeId == "5")
+          else if ((int)from  == 5)
           {
             fileName = "Node5 Data ";
           }
-          else if (nodeId == "6")
+          else if ((int)from  == 6)
           {
             fileName = "Node6 Data ";
           }
@@ -461,21 +487,21 @@ int main(int argc, const char *argv[])
         //   state = 4;
         // }
         printf("from %d\n", from);
-      //   for (int i = 0; i <= buflen; i++){
-      //     if ((char *) _buf[i] == "/0"){
-      //       break;
-      //     }
-      //     buf[i] = buf_1[i];
-      //   }
+        //   for (int i = 0; i <= buflen; i++){
+        //     if ((char *) _buf[i] == "/0"){
+        //       break;
+        //     }
+        //     buf[i] = buf_1[i];
+        //   }
       }
     }
     else if (state == 5) // send broadcast
     {
       // sleep(3);
       uint8_t turn[10];
-      //uint8_t turn[2 + rand() % 40];
-      //uint8_t turn[] = {0};
-      turn[0] = SERVER_ADDRESS_2;
+      // uint8_t turn[2 + rand() % 40];
+      // uint8_t turn[] = {0};
+      turn[0] = SERVER_ADDRESS_1;
       uint8_t turnlen = sizeof(turn);
       // uint8_t buf[50];
       if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
