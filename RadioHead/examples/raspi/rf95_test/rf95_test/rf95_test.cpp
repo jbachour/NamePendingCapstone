@@ -44,7 +44,7 @@ RHMesh manager(rf95, CLIENT_ADDRESS);
 // Flag for Ctrl-C
 int flag = 0;
 
-std::string path = "/media/node6/node6ssd/Node Data/";
+std::string path = "/media/node4/node4ssd/Node Data/";
 std::string fileName = "";
 std::string packetTimeStamp = "packetTimeStamp";
 std::string logTimeStamp = "logFileTimeStamp";
@@ -195,7 +195,6 @@ int main(int argc, const char *argv[])
 {
 
   std::array<std::string, 6> packetContent;
-  std::string timeStamp = "";
   DNP3Packet packet;
 
   if (gpioInitialise() < 0) // pigpio library function that initiliazes gpio
@@ -280,6 +279,8 @@ int main(int argc, const char *argv[])
 
     if (state == 1) // sending
     {
+      std::string timeStamp = "";
+
       // Providing a seed value
       srand((unsigned)time(NULL));
 
@@ -300,7 +301,7 @@ int main(int argc, const char *argv[])
 
       for (int i = 5; i <= 23; i++)
       {
-        data[i] = data[i] + timeStamp[j];
+        data[i] = timeStamp[j];
         j++;
       }
 
@@ -335,17 +336,30 @@ int main(int argc, const char *argv[])
         Serial.print(from, HEX);
         Serial.print(": ");
         Serial.println((char *)&buf);
+
+        std::string timeStamp = "";
+        char temp[50] = "";
         int len = 0;
 
         while(len < 23){
-          if(buf[0] == data[0]){
+          if(buf[len] == data[len]){
             //std::cout << "They are equal \n";
             len++;
           }
         }
 
+        int j = 0;
+
+        for (int i = 5; i <= 23; i++)
+        {
+          temp[j] = buf[i];
+          j++;
+        }
+        
+        timeStamp = temp;
+
         if(len == 23){
-          fileName = "Node6 Data ";
+          fileName = "Node1 Data ";
           packetContent = packetReader(buf, timeStamp);
           fileWriter(path, fileName, packetContent);
         }
@@ -431,6 +445,19 @@ int main(int argc, const char *argv[])
           printf("this is to %d\n", to);
           // rf95.waitAvailableTimeout(1000);
           state = 3;
+          
+          std::string timeStamp = "";
+          char temp[50] = "";
+
+          int j = 0;
+
+          for (int i = 5; i <= 23; i++)
+          {
+            temp[j] = buf[i];
+            j++;
+          }
+        
+          timeStamp = temp;
 
           packetContent = packetReader(buf, timeStamp);
 
