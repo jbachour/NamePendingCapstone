@@ -113,18 +113,22 @@ int main(int argc, const char *argv[])
 
   /* timeouts start */
   // retry to send your broadcast
-  unsigned long retrysend = 10000;
-  unsigned long retrystarttime;
+  unsigned long retrySend = 10000;
+  unsigned long retryStartTimer;
   // Node turn timer
-  unsigned long turntimer = 45000;
-  unsigned long startturntimer;
+  unsigned long turnTimer = 45000;
+  unsigned long startTurnTimer;
   // Join request resend timer
-  unsigned long resendtimer = 10000;
-  unsigned long starttime;
+  unsigned long joinResendTimer = 10000;
+  unsigned long joinResendStartTimer;
+  // Retry sending turn 
+  unsigned long retryTurn = 10000;
+  unsigned long retryTurnTimer;
+  
 
   /* timeouts end */
 
-  // Keep track of how many times the node has sent the join request.
+  // Keep track of how many times the node has resent the join request.
   int retry = 0;
   // Edge case where there are only 2 nodes in the network.
   bool two_nodes = false;
@@ -146,7 +150,7 @@ int main(int argc, const char *argv[])
       manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
       printf("flag %d", manager.headerFlags());
       uint8_t datalen = sizeof(data);
-      startturntimer = millis();
+      startTurnTimer = millis();
       if (manager.sendto(data, datalen, RH_BROADCAST_ADDRESS))
       {
         printf("Sending broadcast... \n");
@@ -159,7 +163,7 @@ int main(int argc, const char *argv[])
         rf95.setModeRx();
         state = 2;
       }
-      retrystarttime = millis();
+      retryStartTimer = millis();
     }
     else if (state == 2) // recv ack
     {
@@ -176,11 +180,11 @@ int main(int argc, const char *argv[])
          rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
         state = 5;
       }
-      else if (millis() - retrystarttime >= retrysend && (millis() - startturntimer <= turntimer))
+      else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer))
       {
         state = 6; // retry send
       }
-      else if (millis() - startturntimer >= turntimer)
+      else if (millis() - startTurnTimer >= turnTimer)
       {
         state = 5; // send broadcast - tell next node its his turn
         printf("turn over \n");
@@ -225,7 +229,7 @@ int main(int argc, const char *argv[])
             Serial.println((char *)buf);
              rf95.waitAvailableTimeout(1000);
             state = 1; // client
-            startturntimer = millis();
+            startTurnTimer = millis();
           }
           buflen = 50;
         }
@@ -251,6 +255,7 @@ int main(int argc, const char *argv[])
           state = 3;
         }
       }
+    
     }
     else if (state == 5) // send turn broadcast
     {
@@ -342,7 +347,7 @@ int main(int argc, const char *argv[])
       //   Serial.print("sent turn to server 1");
       //   state = 4;
       // }
-      retrystarttime = millis();
+      retryStartTimer = millis();
     }
     else if (state == 6) // retry send
     {
@@ -358,7 +363,7 @@ int main(int argc, const char *argv[])
         rf95.setModeRx();
         state = 2;
       }
-      retrystarttime = millis();
+      retryStartTimer = millis();
     }
     else if (state == 7) // join-send
     {
@@ -376,7 +381,7 @@ int main(int argc, const char *argv[])
       rf95.waitPacketSent();
       // change to join-recv state
       state = 8;
-      starttime = millis();
+      joinResendStartTimer = millis();
       printf("join send end\n");
     }
     else if (state == 8) // join-recv-ack
@@ -454,7 +459,7 @@ int main(int argc, const char *argv[])
       }
       // wait 10 seconds to receive join request ack
       // if no ack received switch back to join-send state
-      else if (millis() - starttime >= resendtimer)
+      else if (millis() - joinResendStartTimer >= joinResendTimer)
       {
         state = 7;
         retry++;
