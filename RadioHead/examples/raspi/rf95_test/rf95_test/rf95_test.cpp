@@ -31,7 +31,7 @@ void sig_handler(int sig);
 #define SERVER_ADDRESS_4 5
 #define SERVER_ADDRESS_5 6
 
-// // Network of 6 nodes
+// Network of 6 nodes
 std::map<int, bool> node_status_map;
 #define NODE1_ADDRESS 111
 #define THIS_NODE_ADDRESS 222
@@ -49,10 +49,10 @@ RH_RF95 rf95(RFM95_CS_PIN, RFM95_IRQ_PIN);
 
 RHMesh manager(rf95, THIS_NODE_ADDRESS);
 
-// Flag for Ctrl-C
+// Flag for Ctrl-C to end the program.
 int flag = 0;
 
-// indicates if it's the node's turn to transmit or not
+// Indicates the start state of the node.
 int state = 7;
 
 // Main Function
@@ -104,25 +104,36 @@ int main(int argc, const char *argv[])
   node_status_map.insert(std::pair<int, bool>(NODE5_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE6_ADDRESS, false));
 
-  // Network Session Key (4 digits)
-  uint8_t NSK;
-  uint8_t _from;
+
 
   /* Placeholder Message  */
   uint8_t data[50] = "hello there";
   uint8_t buf[50];
   /* End Placeholder Message */
 
-  // timeouts
-  unsigned long retrystarttime;
+  /* timeouts start */
+  // retry to send your broadcast
   unsigned long retrysend = 10000;
-  unsigned long startturntimer;
+  unsigned long retrystarttime;
+  // Node turn timer
   unsigned long turntimer = 45000;
+  unsigned long startturntimer;
+  // Join request resend timer
   unsigned long resendtimer = 10000;
   unsigned long starttime;
 
+  /* timeouts end */
+
+  // Keep track of how many times the node has sent the join request.
   int retry = 0;
+  // Edge case where there are only 2 nodes in the network.
   bool two_nodes = false;
+
+  // Network Session Key (4 digits)
+  uint8_t NSK;
+  // Keep track of who sent the join request
+  uint8_t _from;
+
   uint8_t from, to;
   uint8_t buflen = sizeof(buf);
 
@@ -424,9 +435,7 @@ int main(int argc, const char *argv[])
               break;
             }
         }
-        printf("im here\n");
         rf95.waitAvailableTimeout(2000);
-        printf("i escaped\n");
         retry = 0;
         recvd = true;
       }
