@@ -178,7 +178,7 @@ int main(int argc, const char *argv[])
         Serial.print(": ");
         Serial.println((char *)buf);
          rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
-        state = 3; // recvd ack go to sending turn
+        state = 5;
       }
       else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer))
       {
@@ -555,13 +555,21 @@ int main(int argc, const char *argv[])
         {
           rf95.waitAvailableTimeout(2000);
           _from = from;
-          state = 5;
+          state = 4;
           two_nodes = true;
           printf("flag %d\n", manager.headerFlags());
           manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
           printf("flag %d\n", manager.headerFlags());
         }
         printf("recv node turn ack end\n");
+      }
+      else if () // after 3 retries change node to false and send to next node
+      {
+
+      }
+      else if () // after x seconds resend turn msg
+      {
+        // start timer after sending turn
       }
     }
     else if (state == 13) // rebroadcast received data
