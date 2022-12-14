@@ -279,7 +279,7 @@ int main(int argc, const char *argv[])
       }
     }
     else if (state == 5) // send turn broadcast
-    {                   
+    {
       sleep(2);
       uint8_t turn[10];
       uint8_t turnlen = sizeof(turn);
@@ -570,23 +570,49 @@ int main(int argc, const char *argv[])
       }
       else if (turn_retry >= 3) // after 3 retries change node to false and send to next node
       {
+        bool none = false;
+        printf("retry counter");
         std::map<int, bool>::iterator itr;
         itr = node_status_map.find(THIS_NODE_ADDRESS);
-        itr++;
-        // print itr
-        std::cout << itr->first << " :: " << itr->second << std::endl;
-        if (itr != node_status_map.end())
+        while (itr != node_status_map.end())
         {
-          itr->second = false;
+          itr++;
+          std::cout << itr->first << " :: " << itr->second << std::endl;
+          if (itr->second == true)
+          {
+            if (itr != node_status_map.end())
+            {
+              itr->second = false;
+            }
+            none = true;
+            break;
+          }
+        }
+        if (none == true)
+        {
+          for (itr = node_status_map.begin(); itr != node_status_map.find(THIS_NODE_ADDRESS); itr++)
+          {
+            if (itr->second == true)
+            {
+              if (itr != node_status_map.find(THIS_NODE_ADDRESS))
+              {
+                itr->second = false;
+              }
+              break;
+            }
+          }
         }
         state = 5;
+        turn_retry = 0;
       }
-      else if (retry_turn_timer >= retry_turn_timeout) // after x seconds resend turn msg
+      else if (millis() - retry_turn_timer >= retry_turn_timeout) // after x seconds resend turn msg
       {
         // start timer after sending turn
+        printf("retry timer %ld", retry_turn_timer);
         state = 5;
         turn_retry++;
       }
+      sleep(4);
     }
     else if (state == 13) // rebroadcast received data
     {
