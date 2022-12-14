@@ -197,10 +197,7 @@ int main(int argc, const char *argv[])
     {
       if (turn_ack == true)
       {
-        printf("flag %d\n", manager.headerFlags());
-        manager.setHeaderFlags(RH_FLAGS_ACK, RH_FLAGS_APPLICATION_SPECIFIC);
-        printf("flag %d\n", manager.headerFlags());
-        if (manager.sendto(buf, buflen, _from))
+        if (manager.sendto(buf, buflen, from))
         {
           printf("Sending turn ack \n");
           // wait for packet to be sent
@@ -208,6 +205,7 @@ int main(int argc, const char *argv[])
           printf("waited \n");
           rf95.setModeRx();
           state = 1;
+          turn_ack = false;
           sleep(2);
         }
         startTurnTimer = millis();
@@ -216,7 +214,7 @@ int main(int argc, const char *argv[])
       else
       {
         // random delay so not all nodes send an acknowledgement at the same time
-        sleep(random(0, 3));
+        sleep(rand() % 2);
         if (manager.sendto(buf, buflen, from))
         {
           printf("Sending ack \n");
@@ -227,6 +225,7 @@ int main(int argc, const char *argv[])
           state = 4;
         }
       }
+      sleep(2);
     }
     else if (state == 4) // recv
     {
@@ -237,7 +236,7 @@ int main(int argc, const char *argv[])
       {
         printf("len %d\n", buflen);
         printf("recvd something\n");
-        if (buflen <= 40)
+        if (buflen <= 25)
         {
           printf("recv a turn msg\n");
           printf("id %d\n", (int)buf[1]);
@@ -551,12 +550,10 @@ int main(int argc, const char *argv[])
     }
     else if (state == 12) // receive turn acknowledgement
     {
-      uint8_t id;
-      uint8_t flags;
-      if (manager.recvfrom(buf, &buflen, &from, &to, &id, &flags))
+      if (manager.recvfrom(buf, &buflen, &from))
       {
         printf("recvd something\n");
-        if (flags == RH_FLAGS_ACK && master_node)
+        if (master_node)
         {
           printf("recv node turn ack start\n");
           rf95.waitAvailableTimeout(2000);
@@ -571,7 +568,7 @@ int main(int argc, const char *argv[])
       else if (turn_retry >= 3) // after 3 retries change node to false and send to next node
       {
         bool none = false;
-        printf("retry counter");
+        printf("retry counter\n");
         std::map<int, bool>::iterator itr;
         itr = node_status_map.find(THIS_NODE_ADDRESS);
         while (itr != node_status_map.end())
@@ -608,7 +605,7 @@ int main(int argc, const char *argv[])
       else if (millis() - retry_turn_timer >= retry_turn_timeout) // after x seconds resend turn msg
       {
         // start timer after sending turn
-        printf("retry timer %ld", retry_turn_timer);
+        printf("retry timer %ld\n", retry_turn_timer);
         state = 5;
         turn_retry++;
       }
