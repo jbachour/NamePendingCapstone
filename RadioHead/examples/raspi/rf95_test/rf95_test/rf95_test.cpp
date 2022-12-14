@@ -104,8 +104,6 @@ int main(int argc, const char *argv[])
   node_status_map.insert(std::pair<int, bool>(NODE5_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE6_ADDRESS, false));
 
-
-
   /* Placeholder Message  */
   uint8_t data[50] = "hello there";
   uint8_t buf[50];
@@ -121,18 +119,22 @@ int main(int argc, const char *argv[])
   // Join request resend timer
   unsigned long joinResendTimer = 10000;
   unsigned long joinResendStartTimer;
-  // Retry sending turn 
-  unsigned long retryTurn = 10000;
-  unsigned long retryTurnTimer;
-  
+  // Retry sending turn
+  unsigned long retry_turn_timeout = 10000;
+  unsigned long retry_turn_timer;
 
   /* timeouts end */
 
   // Keep track of how many times the node has resent the join request.
   int retry = 0;
+  // Keep track of how many times the node has resent the turn message.
+  int turn_retry = 0;
   // Edge case where there are only 2 nodes in the network.
   bool two_nodes = false;
-
+  // Edge case
+  bool master_node = false;
+  // Acknowledge the turn message
+  bool turn_ack = false;
   // Network Session Key (4 digits)
   uint8_t NSK;
   // Keep track of who sent the join request
@@ -172,12 +174,12 @@ int main(int argc, const char *argv[])
 
       if (manager.recvfrom(buf, &buflen, &from))
       {
-       // rf95.waitAvailableTimeout(1000);
+        // rf95.waitAvailableTimeout(1000);
         Serial.print("got ack from : 0x");
         Serial.print(from, HEX);
         Serial.print(": ");
         Serial.println((char *)buf);
-         rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
+        rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
         state = 5;
       }
       else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer))
@@ -192,19 +194,37 @@ int main(int argc, const char *argv[])
     }
     else if (state == 3) // send ack
     {
-      // uint8_t from;
-      if (manager.sendto(buf, buflen, from))
+      if (turn_ack == true)
       {
-
-        printf("Sending ack \n");
-        // Size of message
-        // uint8_t len = sizeof(buf);
-        // uint8_t from;
-        // wait for packet to be sent
-        rf95.waitPacketSent();
-        printf("waited \n");
-        rf95.setModeRx();
-        state = 4;
+        printf("flag %d\n", manager.headerFlags());
+        manager.setHeaderFlags(RH_FLAGS_ACK, RH_FLAGS_APPLICATION_SPECIFIC);
+        printf("flag %d\n", manager.headerFlags());
+        if (manager.sendto(buf, buflen, _from))
+        {
+          printf("Sending turn ack \n");
+          // wait for packet to be sent
+          rf95.waitPacketSent();
+          printf("waited \n");
+          rf95.setModeRx();
+          state = 1;
+          sleep(2);
+        }
+        startTurnTimer = millis();
+      }
+      // normal ack
+      else
+      {
+        // random delay so not all nodes send an acknowledgement at the same time
+        sleep(random(3));
+        if (manager.sendto(buf, buflen, from))
+        {
+          printf("Sending ack \n");
+          // wait for packet to be sent
+          rf95.waitPacketSent();
+          printf("waited \n");
+          rf95.setModeRx();
+          state = 4;
+        }
       }
     }
     else if (state == 4) // recv
@@ -219,17 +239,18 @@ int main(int argc, const char *argv[])
         if (buflen <= 40)
         {
           printf("recv a turn msg\n");
-          printf("id %d\n", (int) buf[1]);
+          printf("id %d\n", (int)buf[1]);
           if ((int)buf[1] == THIS_NODE_ADDRESS)
           {
-            //rf95.waitAvailableTimeout(1000);
+            // rf95.waitAvailableTimeout(1000);
             Serial.print("got message THAT ITS MY TURN : 0x");
             Serial.print(from, HEX);
             Serial.print(": ");
             Serial.println((char *)buf);
-             rf95.waitAvailableTimeout(1000);
-            state = 1; // client
-            startTurnTimer = millis();
+            rf95.waitAvailableTimeout(1000);
+            _from = from;
+            state = 3; // send turn msg ack
+            turn_ack = true;
           }
           buflen = 50;
         }
@@ -245,20 +266,19 @@ int main(int argc, const char *argv[])
         }
         else
         {
-         // rf95.waitAvailableTimeout(1000);
+          // rf95.waitAvailableTimeout(1000);
           Serial.print("got broadcast from : 0x");
           Serial.print(from, HEX);
           Serial.print(": ");
           Serial.println((char *)buf);
           // printf("this is to %d", to);
-           rf95.waitAvailableTimeout(1000);
+          rf95.waitAvailableTimeout(1000);
           state = 3;
         }
       }
-    
     }
     else if (state == 5) // send turn broadcast
-    {
+    {                   
       sleep(2);
       uint8_t turn[10];
       uint8_t turnlen = sizeof(turn);
@@ -272,7 +292,7 @@ int main(int argc, const char *argv[])
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
-          state = 4;
+          state = 12;
           rf95.setModeRx();
         }
       }
@@ -283,7 +303,7 @@ int main(int argc, const char *argv[])
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
-          state = 4;
+          state = 12;
           rf95.setModeRx();
         }
       }
@@ -294,7 +314,7 @@ int main(int argc, const char *argv[])
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
-          state = 4;
+          state = 12;
           rf95.setModeRx();
         }
       }
@@ -305,7 +325,7 @@ int main(int argc, const char *argv[])
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
-          state = 4;
+          state = 12;
           rf95.setModeRx();
         }
       }
@@ -317,7 +337,7 @@ int main(int argc, const char *argv[])
         {
           printf("sent turn\n");
           rf95.setModeRx();
-          state = 4;
+          state = 12;
         }
       }
       else
@@ -327,27 +347,12 @@ int main(int argc, const char *argv[])
         state = 11; // you are the only node in the network. wait for a join req
         rf95.setModeRx();
       }
-      // dunno what this is. can it be deleted?????
-      // for (itr = node_status_map.find(THIS_NODE_ADDRESS); itr != node_status_map.end(); ++itr)
-      // {
-      //   if (itr->second == true)
-      //   {
-      //     if (manager.sendto(data, sizeof(data), itr->first))
-      //     {
-      //       rf95.waitPacketSent();
-      //       Serial.print("sent turn to server 1");
-      //       state = 4;
-      //     }
-      //   }
-      // }
+      // retryStartTimer = millis();
 
-      // if (manager.sendto(data, sizeof(data), SERVER_ADDRESS_1))
-      // {
-      //   rf95.waitPacketSent();
-      //   Serial.print("sent turn to server 1");
-      //   state = 4;
-      // }
-      retryStartTimer = millis();
+      // start retry turn timer
+      retry_turn_timer = millis();
+      // this node is the master node
+      master_node = true;
     }
     else if (state == 6) // retry send
     {
@@ -396,49 +401,49 @@ int main(int argc, const char *argv[])
       if (manager.recvfrom(buf, &buflen, &from, &to, &id, &flags))
       {
         printf("join recv ack start\n");
-        //uint8_t arr[50];
-        // sacar la info recibida del array
-        // network session key, nodes and status of nodes in the network
-        // cambiar a recv mode normal esperando mensaje que es mi turno
+        // uint8_t arr[50];
+        //  sacar la info recibida del array
+        //  network session key, nodes and status of nodes in the network
+        //  cambiar a recv mode normal esperando mensaje que es mi turno
         if (flags == RH_FLAGS_JOIN_REQUEST)
         {
           printf("recvd join ack\n");
           printf((char *)buf);
           NSK = (int)buf[0];
           // take from buf nodes that are active in network
-        //   for (int i = 1; i < buflen; i++)
-        //   {
-        //     printf("buf %d\n", (int) buf[i]);
-        //     printf("arr %d\n", arr[i - 1]);
-        //     if (buf[i] == '\0')
-        //     {
-        //       printf("break null");
-        //       break;
-        //     }
-        //     arr[i - 1] = (int)buf[i];
-        //   }
-            printf("flag %d\n", manager.headerFlags());
-            manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
-            printf("flag %d\n", manager.headerFlags());
-         }
+          //   for (int i = 1; i < buflen; i++)
+          //   {
+          //     printf("buf %d\n", (int) buf[i]);
+          //     printf("arr %d\n", arr[i - 1]);
+          //     if (buf[i] == '\0')
+          //     {
+          //       printf("break null");
+          //       break;
+          //     }
+          //     arr[i - 1] = (int)buf[i];
+          //   }
+          printf("flag %d\n", manager.headerFlags());
+          manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
+          printf("flag %d\n", manager.headerFlags());
+        }
         std::map<int, bool>::iterator itr;
         for (int i = 1; i <= buflen; i++)
         {
-          printf("id %d\n", (int) buf[i]);
-          itr = node_status_map.find((int) buf[i]);
+          printf("id %d\n", (int)buf[i]);
+          itr = node_status_map.find((int)buf[i]);
           itr->second = true;
           // if (itr != node_status_map.end())
           // {
           //   itr->second = true;
           // }
-          
+
           if (buf[i] == '\0')
-            {
-              itr = node_status_map.find(THIS_NODE_ADDRESS);
-              itr->second = true;
-              printf("break null\n");
-              break;
-            }
+          {
+            itr = node_status_map.find(THIS_NODE_ADDRESS);
+            itr->second = true;
+            printf("break null\n");
+            break;
+          }
         }
         rf95.waitAvailableTimeout(2000);
         retry = 0;
@@ -483,7 +488,7 @@ int main(int argc, const char *argv[])
         }
       }
       Serial.println((char *)buf);
-    uint8_t datalen = sizeof(data);
+      uint8_t datalen = sizeof(data);
       // tiene que ser diferente flag para que otros nodos no
       printf("flag %d\n", manager.headerFlags());
       manager.setHeaderFlags(RH_FLAGS_JOIN_REQUEST, RH_FLAGS_APPLICATION_SPECIFIC);
@@ -545,36 +550,45 @@ int main(int argc, const char *argv[])
     }
     else if (state == 12) // receive turn acknowledgement
     {
-      //recv from 5, go to 4 or 5 if 5 after timeout of no broadcast
       uint8_t id;
       uint8_t flags;
       if (manager.recvfrom(buf, &buflen, &from, &to, &id, &flags))
       {
-        printf("recv node turn ack start\n");
-        if (flags == RH_FLAGS_ACK)
+        printf("recvd something\n");
+        if (flags == RH_FLAGS_ACK && master_node)
         {
+          printf("recv node turn ack start\n");
           rf95.waitAvailableTimeout(2000);
-          _from = from;
+          //_from = from;
           state = 4;
-          two_nodes = true;
           printf("flag %d\n", manager.headerFlags());
           manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
           printf("flag %d\n", manager.headerFlags());
+          master_node = false;
         }
-        printf("recv node turn ack end\n");
       }
-      else if () // after 3 retries change node to false and send to next node
+      else if (turn_retry >= 3) // after 3 retries change node to false and send to next node
       {
-
+        std::map<int, bool>::iterator itr;
+        itr = node_status_map.find(THIS_NODE_ADDRESS);
+        itr++;
+        // print itr
+        std::cout << itr->first << " :: " << itr->second << std::endl;
+        if (itr != node_status_map.end())
+        {
+          itr->second = false;
+        }
+        state = 5;
       }
-      else if () // after x seconds resend turn msg
+      else if (retry_turn_timer >= retry_turn_timeout) // after x seconds resend turn msg
       {
         // start timer after sending turn
+        state = 5;
+        turn_retry++;
       }
     }
     else if (state == 13) // rebroadcast received data
     {
-
     }
   }
   printf("\n Test has ended \n");
