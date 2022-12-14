@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <map>
 #include <string>
+#include <iostream>
 
 // Function Definitions
 void sig_handler(int sig);
@@ -215,7 +216,7 @@ int main(int argc, const char *argv[])
       else
       {
         // random delay so not all nodes send an acknowledgement at the same time
-        sleep(random(3));
+        sleep(random(0, 3));
         if (manager.sendto(buf, buflen, from))
         {
           printf("Sending ack \n");
