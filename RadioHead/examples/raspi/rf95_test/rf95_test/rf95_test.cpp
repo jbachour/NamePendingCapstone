@@ -56,6 +56,7 @@ RHMesh manager(rf95, THIS_NODE_ADDRESS);
 // Flag for Ctrl-C to end the program.
 int flag = 0;
 
+// File writer global variables
 std::string path = "/media/node2/node2ssd/Node Data/";
 std::string fileName = "";
 std::string packetTimeStamp = "packetTimeStamp";
@@ -64,6 +65,7 @@ std::string logTimeStamp = "logFileTimeStamp";
 // Indicates the start state of the node.
 int state = 7;
 
+// DNP3 packet struct
 struct DNP3Packet
 {
   std::string sync;
@@ -84,7 +86,6 @@ struct DNP3Packet
 // Recieved a string that would tell the fuction which format to use for the timestamp.
 std::string getCurrentDateTime(std::string s)
 {
-
   time_t now = time(0);
   struct tm timeStruct;
   char timeStamp[20];
@@ -106,9 +107,8 @@ std::string getCurrentDateTime(std::string s)
 
 // Recieved a array containing the data from the LoRa packet.
 // It stored the data in a struct simulating the DNP3Packet and returns it.
-DNP3Packet DNP3PacketGenerator(std::array<std::string, 6> packetContent)
+DNP3Packet DNP3PacketGenerator(std::array<std::string, 10> packetContent)
 {
-
   DNP3Packet packet;
 
   // DNP3Packet header
@@ -122,7 +122,6 @@ DNP3Packet DNP3PacketGenerator(std::array<std::string, 6> packetContent)
   // DNP3Packet data
   packet.phase_angle = packetContent[0];
   packet.phase_on_each_bus = packetContent[1];
-  ;
   packet.power_flow_on_each_transmission_line = packetContent[2];
   packet.substation_load = packetContent[3];
   packet.substation_component_status = packetContent[4];
@@ -135,10 +134,9 @@ DNP3Packet DNP3PacketGenerator(std::array<std::string, 6> packetContent)
 
 // Recieved the array where the data of the LoRa packet is stored when the message is send and the timestamp of when the packet was created.
 // Extracts the data from the packet and returns a string array with the data and the timestamp of the packet
-std::array<std::string, 6> packetReader(uint8_t data[], std::string timeStamp)
+std::array<std::string, 10> packetReader(uint8_t data[], std::string timeStamp)
 {
-
-  std::array<std::string, 6> packetContent;
+  std::array<std::string, 10> packetContent;
 
   packetContent[0] = std::to_string(int(data[0]));
   packetContent[1] = std::to_string(int(data[1]));
@@ -153,9 +151,8 @@ std::array<std::string, 6> packetReader(uint8_t data[], std::string timeStamp)
 // This function recieve the path to the where the file is gonna be save, the name of the file and a array containing the data of the packetContent.
 // It creates a file of type csv and writes a file in csv format of the data from the packet.
 // It creates a log file of type txt that contains the date the file was created, the name of the file and its directory path .
-void fileWriter(std::string path, std::string fileName, std::array<std::string, 6> packetContent)
+void fileWriter(std::string path, std::string fileName, std::array<std::string, 10> packetContent)
 {
-
   std::string timeStamp = "";
   bool fileWasCreated = false;
   timeStamp = packetContent[5];
@@ -185,7 +182,6 @@ void fileWriter(std::string path, std::string fileName, std::array<std::string, 
   // If fileWasCreated is true it will create and update the log file.
   if (fileWasCreated)
   {
-
     // Creates the log file. If the files doesn't exist it will be created in append mode and if the file exist it will open it and update the contebts of the file.
     file.open(path + "Node Data.log", std::ofstream ::app);
 
@@ -204,9 +200,6 @@ void fileWriter(std::string path, std::string fileName, std::array<std::string, 
 // Main Function
 int main(int argc, const char *argv[])
 {
-
-  std::array<std::string, 6> packetContent;
-  DNP3Packet packet;
 
   if (gpioInitialise() < 0) // pigpio library function that initiliazes gpio
   {
@@ -252,6 +245,10 @@ int main(int argc, const char *argv[])
   node_status_map.insert(std::pair<int, bool>(NODE4_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE5_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE6_ADDRESS, false));
+
+  // File wruter variables
+  std::array<std::string, 10> packetContent;
+  DNP3Packet packet;
 
   /* Placeholder Message  */
   uint8_t data[50] = "";
@@ -306,6 +303,7 @@ int main(int argc, const char *argv[])
       // Providing a seed value
       srand((unsigned)time(NULL));
 
+      // Generates random data simulating the data from the substation
       data[0] = 1 + (rand() % 91);
       data[1] = 1 + (rand() % 101);
       data[2] = 1 + (rand() % 101);
@@ -363,10 +361,16 @@ int main(int argc, const char *argv[])
         char temp[50] = "";
         int len = 0;
 
-        while(len < 23){
-          if(buf[len] == data[len]){
-            //std::cout << "They are equal \n";
+        // Checks message integrity by comparing it with the ack you receive
+        while (len < 23)
+        {
+          if (buf[len] == data[len])
+          {
             len++;
+          }
+          else
+          {
+            break;
           }
         }
 
@@ -377,10 +381,12 @@ int main(int argc, const char *argv[])
           temp[j] = buf[i];
           j++;
         }
-        
+
         timeStamp = temp;
 
-        if(len == 23){
+        // If ack is the same as the message you send save your own data
+        if (len == 23)
+        {
           fileName = "Node1 Data ";
           packetContent = packetReader(buf, timeStamp);
           fileWriter(path, fileName, packetContent);
@@ -479,7 +485,7 @@ int main(int argc, const char *argv[])
           // printf("this is to %d", to);
           rf95.waitAvailableTimeout(1000);
           state = 3;
-          
+
           std::string timeStamp = "";
           char temp[50] = "";
 
@@ -490,7 +496,7 @@ int main(int argc, const char *argv[])
             temp[j] = buf[i];
             j++;
           }
-        
+
           timeStamp = temp;
 
           packetContent = packetReader(buf, timeStamp);
@@ -512,11 +518,11 @@ int main(int argc, const char *argv[])
           {
             fileName = "Node4 Data ";
           }
-          else if ((int)from  == NODE5_ADDRESS)
+          else if ((int)from == NODE5_ADDRESS)
           {
             fileName = "Node5 Data ";
           }
-          else if ((int)from  == NODE6_ADDRESS)
+          else if ((int)from == NODE6_ADDRESS)
           {
             fileName = "Node6 Data ";
           }
