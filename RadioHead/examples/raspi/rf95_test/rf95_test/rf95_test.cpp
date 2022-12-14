@@ -178,7 +178,7 @@ int main(int argc, const char *argv[])
         Serial.print(": ");
         Serial.println((char *)buf);
          rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
-        state = 5;
+        state = 3; // recvd ack go to sending turn
       }
       else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer))
       {
@@ -542,6 +542,31 @@ int main(int argc, const char *argv[])
         }
         printf("recv node join req send join ack end\n");
       }
+    }
+    else if (state == 12) // receive turn acknowledgement
+    {
+      //recv from 5, go to 4 or 5 if 5 after timeout of no broadcast
+      uint8_t id;
+      uint8_t flags;
+      if (manager.recvfrom(buf, &buflen, &from, &to, &id, &flags))
+      {
+        printf("recv node turn ack start\n");
+        if (flags == RH_FLAGS_ACK)
+        {
+          rf95.waitAvailableTimeout(2000);
+          _from = from;
+          state = 5;
+          two_nodes = true;
+          printf("flag %d\n", manager.headerFlags());
+          manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
+          printf("flag %d\n", manager.headerFlags());
+        }
+        printf("recv node turn ack end\n");
+      }
+    }
+    else if (state == 13) // rebroadcast received data
+    {
+
     }
   }
   printf("\n Test has ended \n");
