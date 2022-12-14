@@ -325,7 +325,6 @@ int main(int argc, const char *argv[])
         j++;
       }
 
-      uint8_t datalen = sizeof(data);
       startTurnTimer = millis();
       if (manager.sendto(data, datalen, RH_BROADCAST_ADDRESS))
       {
@@ -387,7 +386,7 @@ int main(int argc, const char *argv[])
         // If ack is the same as the message you send save your own data
         if (len == 23)
         {
-          fileName = "Node1 Data ";
+          fileName = "Node2 Data ";
           packetContent = packetReader(buf, timeStamp);
           fileWriter(path, fileName, packetContent);
         }
@@ -662,18 +661,19 @@ int main(int argc, const char *argv[])
       printf("join send start\n");
       uint8_t join[50];
       uint8_t joinlen = sizeof(join);
-      join[0] = THIS_NODE_ADDRESS;
+      join[0] = (int) THIS_NODE_ADDRESS;
 
       /*send a broadcast with a join request message and setting join request flag*/
       printf("flag %d\n", manager.headerFlags());
       manager.setHeaderFlags(RH_FLAGS_JOIN_REQUEST, RH_FLAGS_APPLICATION_SPECIFIC);
       printf("flag %d\n", manager.headerFlags());
       manager.sendto(join, joinlen, RH_BROADCAST_ADDRESS);
-      rf95.waitPacketSent();
+      //rf95.waitPacketSent();
       // change to join-recv state
       state = 8;
       joinResendStartTimer = millis();
       printf("join send end\n");
+      printf("tx %d \n", rf95.txGood());
     }
     else if (state == 8) // join-recv-ack
     {
