@@ -253,6 +253,7 @@ int main(int argc, const char *argv[])
   /* Placeholder Message  */
   uint8_t data[50] = "";
   uint8_t buf[50];
+  uint8_t dupe_buf[50];
   /* End Placeholder Message */
 
   /* timeouts start */
@@ -270,6 +271,9 @@ int main(int argc, const char *argv[])
   unsigned long retry_turn_timer;
   // wait 7 seconds in receive mode to make receiving join requests easier
   unsigned long wait_timer;
+  // last broadcast received timout
+  unsigned long last_broadcast_received = 30000;
+  unsigned long last_broadcast_received_timer;
 
   /* timeouts end */
 
@@ -296,6 +300,7 @@ int main(int argc, const char *argv[])
 
   uint8_t from, to;
   uint8_t buflen = sizeof(buf);
+  uint8_t dupe_buflen = sizeof(buf);
 
   while (!flag)
   {
@@ -354,9 +359,6 @@ int main(int argc, const char *argv[])
     }
     else if (state == 2) // recv ack
     {
-      // uint8_t len = sizeof(buf);
-      // uint8_t from;
-
       if (manager.recvfrom(buf, &buflen, &from))
       {
         // rf95.waitAvailableTimeout(1000);
@@ -400,7 +402,7 @@ int main(int argc, const char *argv[])
           fileWriter(path, fileName, packetContent);
         }
         // rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
-        state = 4;
+        state = 13;
       }
       else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer))
       {
@@ -513,6 +515,10 @@ int main(int argc, const char *argv[])
           new_node = true;
           new_node_id = _from;
         }
+        else if ((int) dupe_buf == 119 && dupe_buf != buf)
+        {
+          //save it
+        }
         else
         {
           // rf95.waitAvailableTimeout(1000);
@@ -522,6 +528,17 @@ int main(int argc, const char *argv[])
           Serial.println((char *)buf);
           // printf("this is to %d", to);
           rf95.waitAvailableTimeout(1000);
+          for (int i = 0; i <= buflen; i++)
+          {
+            dupe_buf[i + 1] = (int)buf[i];
+            if (buf[i] == '\0')
+            {
+              printf("break null\n");
+              break;
+            }
+          }
+          // timer since last boradcast received
+          last_broadcast_received_timer = millis();
           state = 3;
 
           std::string timeStamp = "";
@@ -587,12 +604,16 @@ int main(int argc, const char *argv[])
           std::cout << packet.time_stamp << "\n";
         }
       }
+      // 30 second timer since last broadcast received
+      else if (millis() - last_broadcast_received_timer >= last_broadcast_received)
+      {
+
+      }
       if (send_turn && (millis() - wait_timer >= 7000))
       {
         send_turn = false;
         printf("state 5\n");
         state = 5;
-      }
     }
     else if (state == 5) // send turn broadcast
     {
@@ -932,6 +953,23 @@ int main(int argc, const char *argv[])
     }
     else if (state == 13) // rebroadcast received data
     {
+      sleep(2);
+      if (!two_nodes)
+      {
+        dupe_buf[0] = 119;
+        printf("flag %d\n", manager.headerFlags());
+        manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
+        printf("flag %d", manager.headerFlags());
+        if (manager.sendto(dupe_buf, dupe_buflen, RH_BROADCAST_ADDRESS))
+        {
+          printf("Sending broadcast... \n");
+          rf95.waitPacketSent();
+          printf("waited \n");
+          rf95.setModeRx();
+          state = 5;
+        }
+      }
+      sleep(2);
     }
     else if (state == 14) // sending new node
     {
