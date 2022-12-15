@@ -396,7 +396,7 @@ int main(int argc, const char *argv[])
           fileWriter(path, fileName, packetContent);
         }
         // rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
-        state = 14;
+        state = 5;
       }
       else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer))
       {
@@ -404,14 +404,21 @@ int main(int argc, const char *argv[])
       }
       else if (millis() - startTurnTimer >= turnTimer)
       {
-        state = 14; // send broadcast - tell next node its his turn
+        state = 5; // send broadcast - tell next node its his turn
         printf("turn over timeout\n");
       }
+
+      if (new_node)
+        {
+          state = 14;
+          printf("state 14\n");
+        }
     }
     else if (state == 3) // send ack and turn ack
     {
       if (turn_ack == true)
       {
+        buf[0] = RH_FLAGS_ACK;
         if (manager.sendto(buf, buflen, from))
         {
           printf("Sending turn ack \n");
@@ -459,11 +466,13 @@ int main(int argc, const char *argv[])
             printf("got new node\n");
             std::map<int, bool>::iterator itr;
             itr = node_status_map.find((int)buf[2]);
-            if (itr->second == false)
+            printf("id %d, %d, buf %d\n",itr->first,itr->second, (int)buf[2]);
+            if (itr->second == false && itr != node_status_map.end())
             {
               itr->second = true;
               new_node = true;
               new_node_id = (int)buf[2];
+              printf("state 14\n");
               state = 14;
             }
           }
@@ -484,8 +493,8 @@ int main(int argc, const char *argv[])
               state = 3; // send turn msg ack
               turn_ack = true;
             }
-            buflen = 50;
           }
+          buflen = 50;
         }
         else if (flags == RH_FLAGS_JOIN_REQUEST)
         {
@@ -587,7 +596,7 @@ int main(int argc, const char *argv[])
     }
     else if (state == 5) // send turn broadcast
     {
-      // sleep(2);
+      sleep(2);
       uint8_t turn[10];
       uint8_t turnlen = sizeof(turn);
       turn[0] = NSK;
@@ -661,6 +670,7 @@ int main(int argc, const char *argv[])
       retry_turn_timer = millis();
       // this node is the master node
       master_node = true;
+      printf("tx %d\n", rf95.txGood());
     }
     else if (state == 6) // retry send
     {
@@ -859,12 +869,13 @@ int main(int argc, const char *argv[])
       if (manager.recvfrom(buf, &buflen, &from))
       {
         printf("recvd something\n");
-        if (master_node)
+        if (master_node && ((int) buf[0] == RH_FLAGS_ACK))
         {
           printf("recv node turn ack start\n");
           rf95.waitAvailableTimeout(2000);
           //_from = from;
           state = 4;
+          printf("go to state 4\n");
           printf("flag %d\n", manager.headerFlags());
           manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
           printf("flag %d\n", manager.headerFlags());
@@ -873,7 +884,7 @@ int main(int argc, const char *argv[])
       }
       else if (turn_retry >= 3) // after 3 retries change node to false and send to next node
       {
-        bool none = false;
+        bool none = true;
         printf("retry counter\n");
         std::map<int, bool>::iterator itr;
         itr = node_status_map.find(THIS_NODE_ADDRESS);
@@ -887,11 +898,11 @@ int main(int argc, const char *argv[])
             {
               itr->second = false;
             }
-            none = true;
+            none = false;
             break;
           }
         }
-        if (none == true)
+        if (none)
         {
           for (itr = node_status_map.begin(); itr != node_status_map.find(THIS_NODE_ADDRESS); itr++)
           {
@@ -906,6 +917,7 @@ int main(int argc, const char *argv[])
             }
           }
         }
+        printf("state 5\n");
         state = 5;
         turn_retry = 0;
       }
@@ -937,11 +949,13 @@ int main(int argc, const char *argv[])
         rf95.setModeRx();
       }
       new_node = false;
+      printf("got to 4\n");
+      state = 4;
       if (master_node)
       {
+        printf("go to 5\n");
         state = 5;
       }
-      state = 4;
     }
   }
   printf("\n Test has ended \n");
