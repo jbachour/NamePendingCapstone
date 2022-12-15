@@ -957,17 +957,19 @@ int main(int argc, const char *argv[])
       if (!two_nodes)
       {
         dupe_buf[0] = 119;
-        printf("flag %d\n", manager.headerFlags());
-        manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
-        printf("flag %d", manager.headerFlags());
         if (manager.sendto(dupe_buf, dupe_buflen, RH_BROADCAST_ADDRESS))
         {
           printf("Sending broadcast... \n");
           rf95.waitPacketSent();
           printf("waited \n");
           rf95.setModeRx();
-          state = 5;
+          state = 4;
         }
+      }
+      if (master_node)
+      {
+        send_turn = true;
+        wait_timer = millis();
       }
       sleep(2);
     }
@@ -988,12 +990,7 @@ int main(int argc, const char *argv[])
       }
       new_node = false;
       printf("got to 4\n");
-      state = 4;
-      if (master_node)
-      {
-        send_turn = true;
-        wait_timer = millis();
-      }
+      state = 12;
     }
   }
   printf("\n Test has ended \n");
