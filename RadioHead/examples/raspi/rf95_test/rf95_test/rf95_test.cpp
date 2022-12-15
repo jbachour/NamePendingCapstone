@@ -235,7 +235,7 @@ int main(int argc, const char *argv[])
   rf95.setTxPower(RFM95_TXPOWER, false);
   rf95.setFrequency(RFM95_FREQUENCY);
   rf95.setModemConfig(RH_RF95::Bw125Cr48Sf4096);
-
+  // Bw500Cr45Sf128
   /* End Manager/Driver settings code */
 
   /*Node map status initialise*/
@@ -298,9 +298,10 @@ int main(int argc, const char *argv[])
 
     if (state == 1) // sending
     {
+      master_node = true;
       printf("flag %d\n", manager.headerFlags());
       manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
-      printf("flag %d", manager.headerFlags());
+      printf("flag %d\n", manager.headerFlags());
       uint8_t datalen = sizeof(data);
       std::string timeStamp = "";
 
@@ -404,10 +405,10 @@ int main(int argc, const char *argv[])
       else if (millis() - startTurnTimer >= turnTimer)
       {
         state = 14; // send broadcast - tell next node its his turn
-        printf("turn over \n");
+        printf("turn over timeout\n");
       }
     }
-    else if (state == 3) // send ack
+    else if (state == 3) // send ack and turn ack
     {
       if (turn_ack == true)
       {
@@ -420,7 +421,7 @@ int main(int argc, const char *argv[])
           rf95.setModeRx();
           state = 1;
           turn_ack = false;
-          sleep(2);
+          // sleep(2);
         }
         startTurnTimer = millis();
       }
@@ -450,23 +451,41 @@ int main(int argc, const char *argv[])
       {
         printf("len %d\n", buflen);
         printf("recvd something\n");
-        if (buflen <= 25)
+        if (buflen <= 30)
         {
-          printf("recv a turn msg\n");
-          printf("id %d\n", (int)buf[1]);
-          if ((int)buf[1] == THIS_NODE_ADDRESS)
+          // if i did not receive a join request
+          if (buf[0] = RH_FLAGS_JOIN_REQUEST)
           {
-            // rf95.waitAvailableTimeout(1000);
-            Serial.print("got message THAT ITS MY TURN : 0x");
-            Serial.print(from, HEX);
-            Serial.print(": ");
-            Serial.println((char *)buf);
-            rf95.waitAvailableTimeout(1000);
-            _from = from;
-            state = 3; // send turn msg ack
-            turn_ack = true;
+            printf("got new node\n");
+            std::map<int, bool>::iterator itr;
+            itr = node_status_map.find((int)buf[2]);
+            if (itr->second == false)
+            {
+              itr->second = true;
+              new_node = true;
+              new_node_id = (int)buf[2];
+              state = 14;
+            }
           }
-          buflen = 50;
+          // buflen <13
+          if (buflen <= 13)
+          {
+            printf("recv a turn msg\n");
+            printf("id %d\n", (int)buf[1]);
+            if ((int)buf[1] == THIS_NODE_ADDRESS)
+            {
+              // rf95.waitAvailableTimeout(1000);
+              Serial.print("got message THAT ITS MY TURN : 0x");
+              Serial.print(from, HEX);
+              Serial.print(": ");
+              Serial.println((char *)buf);
+              rf95.waitAvailableTimeout(1000);
+              _from = from;
+              state = 3; // send turn msg ack
+              turn_ack = true;
+            }
+            buflen = 50;
+          }
         }
         else if (flags == RH_FLAGS_JOIN_REQUEST)
         {
@@ -478,19 +497,6 @@ int main(int argc, const char *argv[])
           printf("flag %d", manager.headerFlags());
           new_node = true;
           new_node_id = _from;
-        }
-        // if i did not receive a join request
-        else if (buf[0] = 31)
-        {
-          std::map<int, bool>::iterator itr;
-          itr = node_status_map.find((int) buf[1]);
-          if (itr->second == false)
-          {
-            itr->second = true;
-            new_node = true;
-            new_node_id = (int) buf[1];
-            state = 14;
-          }
         }
         else
         {
@@ -581,7 +587,7 @@ int main(int argc, const char *argv[])
     }
     else if (state == 5) // send turn broadcast
     {
-      sleep(2);
+      // sleep(2);
       uint8_t turn[10];
       uint8_t turnlen = sizeof(turn);
       turn[0] = NSK;
@@ -679,7 +685,7 @@ int main(int argc, const char *argv[])
       printf("join send start\n");
       uint8_t join[50];
       uint8_t joinlen = sizeof(join);
-      join[0] = (int) THIS_NODE_ADDRESS;
+      join[0] = (int)THIS_NODE_ADDRESS;
 
       /*send a broadcast with a join request message and setting join request flag*/
       printf("flag %d\n", manager.headerFlags());
@@ -803,7 +809,7 @@ int main(int argc, const char *argv[])
         state = 5;
         two_nodes = false;
         rf95.setModeTx();
-        sleep(6);
+        sleep(5);
       }
       itr = node_status_map.find(_from);
       if (itr != node_status_map.end())
@@ -889,6 +895,7 @@ int main(int argc, const char *argv[])
         {
           for (itr = node_status_map.begin(); itr != node_status_map.find(THIS_NODE_ADDRESS); itr++)
           {
+            std::cout << itr->first << " :: " << itr->second << std::endl;
             if (itr->second == true)
             {
               if (itr != node_status_map.find(THIS_NODE_ADDRESS))
@@ -909,28 +916,32 @@ int main(int argc, const char *argv[])
         state = 5;
         turn_retry++;
       }
-      sleep(4);
+      // sleep(4);
     }
     else if (state == 13) // rebroadcast received data
     {
     }
     else if (state == 14) // sending new node
     {
-      uint8_t new_node_arr[50];
+      sleep(3);
+      uint8_t new_node_arr[20];
       uint8_t new_node_arrlen = sizeof(new_node_arr);
-      new_node_arr[0] = 31;
-      new_node_arr[1] = new_node_id;
+      new_node_arr[0] = RH_FLAGS_JOIN_REQUEST;
+      new_node_arr[2] = new_node_id;
       if (manager.sendto(new_node_arr, new_node_arrlen, RH_BROADCAST_ADDRESS))
       {
         printf((char *)&new_node_arr);
-        printf("Sending broadcast... \n");
+        printf("Sending new node... \n");
         rf95.waitPacketSent();
         printf("waited \n");
         rf95.setModeRx();
       }
       new_node = false;
-      state = 5;
-      sleep(3);
+      if (master_node)
+      {
+        state = 5;
+      }
+      state = 4;
     }
   }
   printf("\n Test has ended \n");
