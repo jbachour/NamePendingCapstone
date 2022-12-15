@@ -268,6 +268,8 @@ int main(int argc, const char *argv[])
   // Retry sending turn
   unsigned long retry_turn_timeout = 10000;
   unsigned long retry_turn_timer;
+  // wait 7 seconds in receive mode to make receiving join requests easier
+  unsigned long wait_timer;
 
   /* timeouts end */
 
@@ -285,6 +287,8 @@ int main(int argc, const char *argv[])
   bool new_node = false;
   // new node id
   int new_node_id = 0;
+  // wait in receive for any join requests
+  bool send_turn = false;
   // Network Session Key (4 digits)
   uint8_t NSK;
   // Keep track of who sent the join request
@@ -396,7 +400,7 @@ int main(int argc, const char *argv[])
           fileWriter(path, fileName, packetContent);
         }
         // rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
-        state = 5;
+        state = 4;
       }
       else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer))
       {
@@ -404,15 +408,17 @@ int main(int argc, const char *argv[])
       }
       else if (millis() - startTurnTimer >= turnTimer)
       {
-        state = 5; // send broadcast - tell next node its his turn
+        state = 4; // send broadcast - tell next node its his turn
         printf("turn over timeout\n");
       }
 
       if (new_node)
-        {
-          state = 14;
-          printf("state 14\n");
-        }
+      {
+        state = 14;
+        printf("state 14\n");
+      }
+      send_turn = true;
+      wait_timer = millis();
     }
     else if (state == 3) // send ack and turn ack
     {
@@ -466,7 +472,7 @@ int main(int argc, const char *argv[])
             printf("got new node\n");
             std::map<int, bool>::iterator itr;
             itr = node_status_map.find((int)buf[2]);
-            printf("id %d, %d, buf %d\n",itr->first,itr->second, (int)buf[2]);
+            printf("id %d, %d, buf %d\n", itr->first, itr->second, (int)buf[2]);
             if (itr->second == false && itr != node_status_map.end())
             {
               itr->second = true;
@@ -580,18 +586,12 @@ int main(int argc, const char *argv[])
 
           std::cout << packet.time_stamp << "\n";
         }
-        // else
-        // {
-        //   printf("you're not supposed to be here!!!\n");
-        //   state = 4;
-        // }
-        printf("from %d\n", from);
-        //   for (int i = 0; i <= buflen; i++){
-        //     if ((char *) _buf[i] == "/0"){
-        //       break;
-        //     }
-        //     buf[i] = buf_1[i];
-        //   }
+      }
+      if (send_turn && (millis() - wait_timer >= 7000))
+      {
+        send_turn = false;
+        printf("state 5\n");
+        state = 5;
       }
     }
     else if (state == 5) // send turn broadcast
@@ -699,7 +699,7 @@ int main(int argc, const char *argv[])
 
       /*send a broadcast with a join request message and setting join request flag*/
       printf("flag %d\n", manager.headerFlags());
-      manager.setHeaderFlags(RH_FLAGS_JOIN_REQUEST, RH_FLAGS_APPLICATION_SPECIFIC);
+      manager.setHeaderFlags(RH_FLAGS_JOIN_REQUEST, RH_FLAGS_NONE);
       printf("flag %d\n", manager.headerFlags());
       manager.sendto(join, joinlen, RH_BROADCAST_ADDRESS);
       rf95.waitPacketSent();
@@ -741,29 +741,29 @@ int main(int argc, const char *argv[])
           printf("flag %d\n", manager.headerFlags());
           manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
           printf("flag %d\n", manager.headerFlags());
-        }
-        std::map<int, bool>::iterator itr;
-        for (int i = 1; i <= buflen; i++)
-        {
-          printf("id %d\n", (int)buf[i]);
-          itr = node_status_map.find((int)buf[i]);
-          itr->second = true;
-          // if (itr != node_status_map.end())
-          // {
-          //   itr->second = true;
-          // }
-
-          if (buf[i] == '\0')
+          std::map<int, bool>::iterator itr;
+          for (int i = 1; i <= buflen; i++)
           {
-            itr = node_status_map.find(THIS_NODE_ADDRESS);
+            printf("id %d\n", (int)buf[i]);
+            itr = node_status_map.find((int)buf[i]);
             itr->second = true;
-            printf("break null\n");
-            break;
+            // if (itr != node_status_map.end())
+            // {
+            //   itr->second = true;
+            // }
+
+            if (buf[i] == '\0')
+            {
+              itr = node_status_map.find(THIS_NODE_ADDRESS);
+              itr->second = true;
+              printf("break null\n");
+              break;
+            }
           }
+          rf95.waitAvailableTimeout(2000);
+          retry = 0;
+          recvd = true;
         }
-        rf95.waitAvailableTimeout(2000);
-        retry = 0;
-        recvd = true;
       }
       // if ive sent join-send more than 7 times create nertwork
       if (retry > 2)
@@ -869,7 +869,7 @@ int main(int argc, const char *argv[])
       if (manager.recvfrom(buf, &buflen, &from))
       {
         printf("recvd something\n");
-        if (master_node && ((int) buf[0] == RH_FLAGS_ACK))
+        if (master_node && ((int)buf[0] == RH_FLAGS_ACK))
         {
           printf("recv node turn ack start\n");
           rf95.waitAvailableTimeout(2000);
@@ -953,8 +953,8 @@ int main(int argc, const char *argv[])
       state = 4;
       if (master_node)
       {
-        printf("go to 5\n");
-        state = 5;
+        send_turn = true;
+        wait_timer = millis();
       }
     }
   }
