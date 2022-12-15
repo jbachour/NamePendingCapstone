@@ -281,6 +281,10 @@ int main(int argc, const char *argv[])
   bool master_node = false;
   // Acknowledge the turn message
   bool turn_ack = false;
+  // new node has joined the network
+  bool new_node = false;
+  // new node id
+  int new_node_id = 0;
   // Network Session Key (4 digits)
   uint8_t NSK;
   // Keep track of who sent the join request
@@ -391,7 +395,7 @@ int main(int argc, const char *argv[])
           fileWriter(path, fileName, packetContent);
         }
         // rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
-        state = 5;
+        state = 14;
       }
       else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer))
       {
@@ -399,7 +403,7 @@ int main(int argc, const char *argv[])
       }
       else if (millis() - startTurnTimer >= turnTimer)
       {
-        state = 5; // send broadcast - tell next node its his turn
+        state = 14; // send broadcast - tell next node its his turn
         printf("turn over \n");
       }
     }
@@ -464,7 +468,6 @@ int main(int argc, const char *argv[])
           }
           buflen = 50;
         }
-        // might need to change bc of same flags
         else if (flags == RH_FLAGS_JOIN_REQUEST)
         {
           printf("got join req\n");
@@ -473,6 +476,21 @@ int main(int argc, const char *argv[])
           printf("flag %d\n", manager.headerFlags());
           manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
           printf("flag %d", manager.headerFlags());
+          new_node = true;
+          new_node_id = _from;
+        }
+        // if i did not receive a join request
+        else if (buf[0] = 31)
+        {
+          std::map<int, bool>::iterator itr;
+          itr = node_status_map.find((int) buf[1]);
+          if (itr->second == false)
+          {
+            itr->second = true;
+            new_node = true;
+            new_node_id = (int) buf[1];
+            state = 14;
+          }
         }
         else
         {
@@ -677,10 +695,6 @@ int main(int argc, const char *argv[])
     }
     else if (state == 8) // join-recv-ack
     {
-      // printf("join recv ack start\n");
-      //  uint8_t len = sizeof(buf);
-      //  uint8_t from;
-      //  uint8_t dest;
       uint8_t id, flags;
       bool recvd = false;
       // join-recv start time for 10 second timeout
@@ -899,6 +913,24 @@ int main(int argc, const char *argv[])
     }
     else if (state == 13) // rebroadcast received data
     {
+    }
+    else if (state == 14) // sending new node
+    {
+      uint8_t new_node_arr[50];
+      uint8_t new_node_arrlen = sizeof(new_node_arr);
+      new_node_arr[0] = 31;
+      new_node_arr[1] = new_node_id;
+      if (manager.sendto(new_node_arr, new_node_arrlen, RH_BROADCAST_ADDRESS))
+      {
+        printf((char *)&new_node_arr);
+        printf("Sending broadcast... \n");
+        rf95.waitPacketSent();
+        printf("waited \n");
+        rf95.setModeRx();
+      }
+      new_node = false;
+      state = 5;
+      sleep(3);
     }
   }
   printf("\n Test has ended \n");
