@@ -37,12 +37,12 @@ void sig_handler(int sig);
 
 // Network of 6 nodes
 std::map<int, bool> node_status_map;
-#define NODE1_ADDRESS 111
-#define THIS_NODE_ADDRESS 222
-#define NODE3_ADDRESS 333
-#define NODE4_ADDRESS 444
-#define NODE5_ADDRESS 555
-#define NODE6_ADDRESS 666
+#define NODE1_ADDRESS 11
+#define THIS_NODE_ADDRESS 22
+#define NODE3_ADDRESS 33
+#define NODE4_ADDRESS 44
+#define NODE5_ADDRESS 55
+#define NODE6_ADDRESS 66
 
 // RFM95 Configuration
 #define RFM95_FREQUENCY 915.00
@@ -668,7 +668,7 @@ int main(int argc, const char *argv[])
       manager.setHeaderFlags(RH_FLAGS_JOIN_REQUEST, RH_FLAGS_APPLICATION_SPECIFIC);
       printf("flag %d\n", manager.headerFlags());
       manager.sendto(join, joinlen, RH_BROADCAST_ADDRESS);
-      //rf95.waitPacketSent();
+      rf95.waitPacketSent();
       // change to join-recv state
       state = 8;
       joinResendStartTimer = millis();
