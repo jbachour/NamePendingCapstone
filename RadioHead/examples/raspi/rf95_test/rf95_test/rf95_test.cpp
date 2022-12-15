@@ -308,9 +308,6 @@ int main(int argc, const char *argv[])
     if (state == 1) // sending
     {
       master_node = true;
-      printf("flag %d\n", manager.headerFlags());
-      manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
-      printf("flag %d\n", manager.headerFlags());
       uint8_t datalen = sizeof(data);
       std::string timeStamp = "";
 
@@ -459,17 +456,14 @@ int main(int argc, const char *argv[])
     }
     else if (state == 4) // recv
     {
-      // uint8_t len = sizeof(buf);
-      uint8_t id, flags;
-
-      if (manager.recvfrom(buf, &buflen, &from, &to, &id, &flags))
+      if (manager.recvfrom(buf, &buflen, &from))
       {
         printf("len %d\n", buflen);
         printf("recvd something\n");
         if (buflen <= 30)
         {
           // if i did not receive a join request
-          if (buf[0] = RH_FLAGS_JOIN_REQUEST)
+          if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST)
           {
             printf("got new node\n");
             std::map<int, bool>::iterator itr;
@@ -504,14 +498,11 @@ int main(int argc, const char *argv[])
           }
           buflen = 50;
         }
-        else if (flags == RH_FLAGS_JOIN_REQUEST)
+        else if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST)
         {
           printf("got join req\n");
           state = 9;
           _from = from;
-          printf("flag %d\n", manager.headerFlags());
-          manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
-          printf("flag %d", manager.headerFlags());
           new_node = true;
           new_node_id = _from;
         }
@@ -716,12 +707,10 @@ int main(int argc, const char *argv[])
       printf("join send start\n");
       uint8_t join[50];
       uint8_t joinlen = sizeof(join);
-      join[0] = (int)THIS_NODE_ADDRESS;
+      join[0] = RH_FLAGS_JOIN_REQUEST;
+      join[1] = THIS_NODE_ADDRESS;
 
       /*send a broadcast with a join request message and setting join request flag*/
-      printf("flag %d\n", manager.headerFlags());
-      manager.setHeaderFlags(RH_FLAGS_JOIN_REQUEST, RH_FLAGS_NONE);
-      printf("flag %d\n", manager.headerFlags());
       manager.sendto(join, joinlen, RH_BROADCAST_ADDRESS);
       rf95.waitPacketSent();
       // change to join-recv state
@@ -732,21 +721,19 @@ int main(int argc, const char *argv[])
     }
     else if (state == 8) // join-recv-ack
     {
-      uint8_t id, flags;
       bool recvd = false;
       // join-recv start time for 10 second timeout
-      if (manager.recvfrom(buf, &buflen, &from, &to, &id, &flags))
+      if (manager.recvfrom(buf, &buflen, &from))
       {
         printf("join recv ack start\n");
         // uint8_t arr[50];
         //  sacar la info recibida del array
         //  network session key, nodes and status of nodes in the network
         //  cambiar a recv mode normal esperando mensaje que es mi turno
-        if (flags == RH_FLAGS_JOIN_REQUEST)
+        if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST)
         {
           printf("recvd join ack\n");
           printf((char *)buf);
-          NSK = (int)buf[0];
           // take from buf nodes that are active in network
           //   for (int i = 1; i < buflen; i++)
           //   {
@@ -759,9 +746,6 @@ int main(int argc, const char *argv[])
           //     }
           //     arr[i - 1] = (int)buf[i];
           //   }
-          printf("flag %d\n", manager.headerFlags());
-          manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
-          printf("flag %d\n", manager.headerFlags());
           std::map<int, bool>::iterator itr;
           for (int i = 1; i <= buflen; i++)
           {
@@ -815,7 +799,7 @@ int main(int argc, const char *argv[])
       uint8_t data[50];
       std::map<int, bool>::iterator itr;
       int i = 1;
-      data[0] = NSK;
+      data[0] = RH_FLAGS_JOIN_REQUEST;
       for (itr = node_status_map.begin(); itr != node_status_map.end(); ++itr)
       {
         if (itr->second == true)
@@ -826,10 +810,6 @@ int main(int argc, const char *argv[])
       }
       Serial.println((char *)buf);
       uint8_t datalen = sizeof(data);
-      // tiene que ser diferente flag para que otros nodos no
-      printf("flag %d\n", manager.headerFlags());
-      manager.setHeaderFlags(RH_FLAGS_JOIN_REQUEST, RH_FLAGS_APPLICATION_SPECIFIC);
-      printf("flag %d\n", manager.headerFlags());
       manager.sendto(data, datalen, _from);
       rf95.waitPacketSent(2000);
       printf("waited\n");
@@ -864,23 +844,15 @@ int main(int argc, const char *argv[])
     }
     else if (state == 11) // recv node join req, send join-ack, tell new node its his turn?
     {
-      // uint8_t len = sizeof(buf);
-      // uint8_t from;
-      // uint8_t dest;
-      uint8_t id;
-      uint8_t flags;
-      if (manager.recvfrom(buf, &buflen, &from, &to, &id, &flags))
+      if (manager.recvfrom(buf, &buflen, &from))
       {
         printf("recv node join req send join ack start\n");
-        if (flags == RH_FLAGS_JOIN_REQUEST)
+        if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST)
         {
           rf95.waitAvailableTimeout(2000);
           _from = from;
           state = 9;
           two_nodes = true;
-          printf("flag %d\n", manager.headerFlags());
-          manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
-          printf("flag %d\n", manager.headerFlags());
         }
         printf("recv node join req send join ack end\n");
       }
@@ -897,9 +869,6 @@ int main(int argc, const char *argv[])
           //_from = from;
           state = 4;
           printf("go to state 4\n");
-          printf("flag %d\n", manager.headerFlags());
-          manager.setHeaderFlags(RH_FLAGS_NONE, RH_FLAGS_APPLICATION_SPECIFIC);
-          printf("flag %d\n", manager.headerFlags());
           master_node = false;
         }
       }
