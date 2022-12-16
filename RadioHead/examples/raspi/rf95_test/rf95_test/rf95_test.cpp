@@ -200,9 +200,9 @@ void fileWriter(std::string path, std::string fileName, std::array<std::string, 
 // Verify if data received in buffer is the same as data created or first received in temp
 bool dataIsEqual(uint8_t buffer[], uint8_t cran[])
 {
-  for (int i = 1; i >= 23; i++)
+  for (int i = 2; i >= 25; i++)
   {
-    if (!(int)buffer[i] == (int)cran[i])
+    if (!(int)buffer[i] == (int)cran[i - 2])
     {
       return false;
     }
@@ -350,22 +350,22 @@ int main(int argc, const char *argv[])
       srand((unsigned)time(NULL));
 
       // Generates random data simulating the data from the substation
-      data[1] = 1 + (rand() % 91);
-      data[2] = 1 + (rand() % 101);
+      data[2] = 1 + (rand() % 91);
       data[3] = 1 + (rand() % 101);
       data[4] = 1 + (rand() % 101);
-      data[5] = 0 + (rand() % 2);
-      printf("%d ", data[1]);
+      data[5] = 1 + (rand() % 101);
+      data[6] = 0 + (rand() % 2);
       printf("%d ", data[2]);
       printf("%d ", data[3]);
       printf("%d ", data[4]);
       printf("%d ", data[5]);
+      printf("%d ", data[6]);
 
       timeStamp = getCurrentDateTime(packetTimeStamp);
 
       int j = 0;
 
-      for (int i = 6; i <= 24; i++)
+      for (int i = 7; i <= 25; i++)
       {
         data[i] = timeStamp[j];
         j++;
@@ -577,7 +577,7 @@ int main(int argc, const char *argv[])
 
             int j = 0;
 
-            for (int i = 6; i <= 25; i++)
+            for (int i = 7; i <= 25; i++)
             {
               temp[j] = buf[i];
               j++;
