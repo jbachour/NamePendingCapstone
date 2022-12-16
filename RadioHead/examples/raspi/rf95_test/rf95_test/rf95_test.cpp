@@ -267,7 +267,7 @@ int main(int argc, const char *argv[])
   printf("Frequency= %d MHz\n", (uint16_t)RFM95_FREQUENCY);
   printf("Power= %d\n", (uint8_t)RFM95_TXPOWER);
   printf("This Address= %d\n", CLIENT_ADDRESS);
-  rf95.setTxPower(RFM95_TXPOWER, false);
+  rf95.setTxPower(RFM95_TXPOWER, true);
   rf95.setFrequency(RFM95_FREQUENCY);
   rf95.setModemConfig(RH_RF95::Bw125Cr48Sf4096);
   // Bw500Cr45Sf128
@@ -529,7 +529,7 @@ int main(int argc, const char *argv[])
             {
               // rf95.waitAvailableTimeout(1000);
               Serial.print("got message THAT ITS MY TURN : 0x");
-              Serial.print(from, HEX);
+              Serial.print(from);
               Serial.print(": ");
               Serial.println((char *)buf);
               rf95.waitAvailableTimeout(1000);
@@ -555,7 +555,7 @@ int main(int argc, const char *argv[])
           {
             // rf95.waitAvailableTimeout(1000);
             Serial.print("got broadcast from : 0x");
-            Serial.print(from, HEX);
+            Serial.print(from);
             Serial.print(": ");
             Serial.println((char *)buf);
             // timer since last boradcast received
@@ -564,10 +564,10 @@ int main(int argc, const char *argv[])
               state = 3;
             }
             rf95.waitAvailableTimeout(1000);
-
-            for (int i = 2; i <= 25; i++)
+            
+            for (int i = 0; i <= 25; i++)
             {
-              dupe_buf[i - 2] = (int)buf[i]; // save everything except first 2 space (flags)
+              dupe_buf[i] = (int)buf[i]; // save everything except first 2 space (flags)
               if (buf[i] == '\0')
               {
                 printf("break null\n");
