@@ -854,6 +854,7 @@ int main(int argc, const char *argv[])
       int i = 2;
       data[0] = RH_FLAGS_JOIN_REQUEST;
       data[1] = _from;
+      printf("%d\n", _from);
       for (itr = node_status_map.begin(); itr != node_status_map.end(); ++itr)
       {
         if (itr->second == true)
