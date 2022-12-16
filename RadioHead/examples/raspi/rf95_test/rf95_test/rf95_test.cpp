@@ -235,7 +235,7 @@ int main(int argc, const char *argv[])
   rf95.setTxPower(RFM95_TXPOWER, false);
   rf95.setFrequency(RFM95_FREQUENCY);
   rf95.setModemConfig(RH_RF95::Bw125Cr48Sf4096);
-  // Bw500Cr45Sf128
+  // Bw500Cr45Sf128         Bw125Cr48Sf4096
   /* End Manager/Driver settings code */
 
   /*Node map status initialise*/
@@ -863,10 +863,7 @@ int main(int argc, const char *argv[])
           std::cout << itr->first << " :: " << itr->second << std::endl;
           if (itr->second == true)
           {
-            if (itr != node_status_map.end())
-            {
-              itr->second = false;
-            }
+            itr->second = false;
             none = false;
             break;
           }
