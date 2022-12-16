@@ -200,9 +200,10 @@ void fileWriter(std::string path, std::string fileName, std::array<std::string, 
 // Verify if data received in buffer is the same as data created or first received in temp
 bool dataIsEqual(uint8_t buffer[], uint8_t cran[])
 {
-  for (int i = 2; i >= 25; i++)
+  for (int i = 2; i <= 25; i++)
   {
-    if (!(int)buffer[i] == (int)cran[i - 2])
+    printf("%d : %d\n",(int) buffer[i], (int) cran[i - 2]);
+    if ((int)buffer[i] != (int)cran[i - 2])
     {
       return false;
     }
@@ -341,6 +342,7 @@ int main(int argc, const char *argv[])
 
     if (state == 1) // sending
     {
+      sleep(2);
       master_node = true;
       uint8_t datalen = sizeof(data);
       std::string timeStamp = "";
@@ -400,7 +402,7 @@ int main(int argc, const char *argv[])
 
           std::string timeStamp = "";
           char temp[50] = "";
-          int len = 0;
+          int len = 2;
 
           // Checks message integrity by comparing it with the ack you receive
           while (len < 25)
@@ -453,6 +455,7 @@ int main(int argc, const char *argv[])
       }
       send_turn = true;
       wait_timer = millis();
+      last_broadcast_received_timer = millis();
     }
     else if (state == 3) // send ack and turn ack
     {
@@ -564,7 +567,7 @@ int main(int argc, const char *argv[])
 
             for (int i = 2; i <= 25; i++)
             {
-              dupe_buf[i - 2] = (int)buf[i]; // save everything except first space (flags)
+              dupe_buf[i - 2] = (int)buf[i]; // save everything except first 2 space (flags)
               if (buf[i] == '\0')
               {
                 printf("break null\n");
@@ -636,6 +639,7 @@ int main(int argc, const char *argv[])
           }
           else
           {
+            printf("else\n");
           }
         }
       }
@@ -734,6 +738,7 @@ int main(int argc, const char *argv[])
       // this node is the master node
       master_node = true;
       printf("tx %d\n", rf95.txGood());
+      last_broadcast_received_timer = millis();
     }
     else if (state == 6) // retry send
     {
@@ -933,10 +938,7 @@ int main(int argc, const char *argv[])
           std::cout << itr->first << " :: " << itr->second << std::endl;
           if (itr->second == true)
           {
-            if (itr != node_status_map.end())
-            {
-              itr->second = false;
-            }
+            itr->second = false;
             none = false;
             break;
           }
