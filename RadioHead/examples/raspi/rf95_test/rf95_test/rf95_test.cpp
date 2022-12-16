@@ -209,6 +209,27 @@ bool dataIsEqual(uint8_t buffer[], uint8_t cran[])
   }
   return true;
 }
+// verify if the last broadcast was sent from the node before your turn
+bool prevNode(int prevnode_id, std::map<int, bool> node_map)
+{
+  bool var = false;
+  std::map<int, bool>::iterator itr;
+  std::map<int, bool>::iterator pol;
+  pol = node_map.find(THIS_NODE_ADDRESS);
+  itr = node_map.find(prevnode_id);
+  while (itr->second != false)
+  {
+    if (itr->first == pol->first)
+    {
+      var = true;
+      break;
+    }
+    itr++;
+  }
+  itr = node_map.find(prevnode_id);
+  itr->second = false;
+  return var;
+}
 
 // Main Function
 int main(int argc, const char *argv[])
@@ -621,6 +642,11 @@ int main(int argc, const char *argv[])
       // if not turn do nothing and wait for other nodes to fix problem
       else if (millis() - last_broadcast_received_timer >= last_broadcast_received)
       {
+        if (prevNode(from, node_status_map))
+        {
+          state = 1;
+        }
+        last_broadcast_received_timer = millis();
       }
       if (send_turn && (millis() - wait_timer >= 7000))
       {
