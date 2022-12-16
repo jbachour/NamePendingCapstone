@@ -426,7 +426,7 @@ int main(int argc, const char *argv[])
           timeStamp = temp;
 
           // If ack is the same as the message you send save your own data
-          if (len == 24)
+          if (len == 25)
           {
             fileName = "Node2 Data ";
             packetContent = packetReader(buf, timeStamp);
@@ -458,9 +458,11 @@ int main(int argc, const char *argv[])
     {
       if (turn_ack == true)
       {
-        buf[0] = RH_FLAGS_ACK;
-        buf[1] = from;
-        if (manager.sendto(buf, buflen, RH_BROADCAST_ADDRESS))
+        uint8_t turn_ackarr[50];
+        uint8_t turn_ackarrlen = sizeof(turn_ackarr);
+        turn_ackarr[0] = RH_FLAGS_ACK;
+        turn_ackarr[1] = from;
+        if (manager.sendto(turn_ackarr, turn_ackarrlen, RH_BROADCAST_ADDRESS))
         {
           printf("Sending turn ack \n");
           // wait for packet to be sent
@@ -969,6 +971,7 @@ int main(int argc, const char *argv[])
     }
     else if (state == 13) // rebroadcast received data
     {
+      printf("state 13 start\n");
       sleep(2);
       if (!two_nodes)
       {
@@ -979,6 +982,7 @@ int main(int argc, const char *argv[])
           printf("waited \n");
           rf95.setModeRx();
           state = 4;
+          printf("state 4\n");
         }
       }
       if (master_node)
@@ -986,10 +990,18 @@ int main(int argc, const char *argv[])
         send_turn = true;
         wait_timer = millis();
       }
+      if (new_node)
+      {
+        state = 14;
+        printf("state 14\n");
+      }
       sleep(2);
+      printf("state 13 end\n");
+      wait_timer = millis();
     }
     else if (state == 14) // sending new node
     {
+      printf("state 14 start\n");
       sleep(3);
       uint8_t new_node_arr[20];
       uint8_t new_node_arrlen = sizeof(new_node_arr);
@@ -1005,7 +1017,9 @@ int main(int argc, const char *argv[])
       }
       new_node = false;
       printf("got to 4\n");
-      state = 12;
+      state = 4;
+      printf("state 13 end\n");
+      wait_timer = millis();
     }
   }
   printf("\n Test has ended \n");
