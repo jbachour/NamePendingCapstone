@@ -307,7 +307,7 @@ int main(int argc, const char *argv[])
   // wait 7 seconds in receive mode to make receiving join requests easier
   unsigned long wait_timer;
   // last broadcast received timout
-  unsigned long last_broadcast_received = 30000;
+  unsigned long last_broadcast_received = 44000;
   unsigned long last_broadcast_received_timer;
 
   /* timeouts end */
@@ -481,8 +481,11 @@ int main(int argc, const char *argv[])
       // normal ack
       else
       {
+        srand((unsigned)time(NULL));
         // random delay so not all nodes send an acknowledgement at the same time
-        sleep(rand() % 2);
+        sleep(rand() % 6);
+        printf("rand %d", rand() % 6);
+        buf[0] = RH_FLAGS_ACK;
         buf[1] = from;
         if (manager.sendto(buf, buflen, RH_BROADCAST_ADDRESS))
         {
@@ -548,10 +551,14 @@ int main(int argc, const char *argv[])
           new_node = true;
           new_node_id = _from;
         }
+         else if ((int)buf[0] == RH_FLAGS_ACK)
+        {
+          printf("got ack\n");
+        }
         else
         {
           last_broadcast_received_timer = millis();
-          if (!dataIsEqual(buf, dupe_buf)) // temp data == buf do not store buf    data being created is stored in temp and after getting inside this if for nodes receiving it for first time
+          if (!dataIsEqual(buf, dupe_buf) ) // temp data == buf do not store buf    data being created is stored in temp and after getting inside this if for nodes receiving it for first time
           {
             // rf95.waitAvailableTimeout(1000);
             Serial.print("got broadcast from : 0x");
@@ -654,7 +661,7 @@ int main(int argc, const char *argv[])
         }
         last_broadcast_received_timer = millis();
       }
-      if (send_turn && (millis() - wait_timer >= 7000))
+      if (send_turn && (millis() - wait_timer >= 14000))
       {
         send_turn = false;
         printf("state 5\n");
@@ -865,6 +872,8 @@ int main(int argc, const char *argv[])
       }
       Serial.println((char *)buf);
       uint8_t datalen = sizeof(data);
+      srand((unsigned)time(NULL));
+      sleep(rand() % 6);
       manager.sendto(data, datalen, RH_BROADCAST_ADDRESS);
       rf95.waitPacketSent(2000);
       printf("waited\n");
