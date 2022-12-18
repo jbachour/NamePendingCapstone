@@ -217,11 +217,14 @@ bool prevNode(int prevnode_id, std::map<int, bool> node_map)
   bool none = false;
   std::map<int, bool>::iterator itr;
   std::map<int, bool>::iterator pol;
+  pol = node_map.end();
+  pol->second = false;
   pol = node_map.find(THIS_NODE_ADDRESS);
   itr = node_map.find(prevnode_id);
-  while (itr != node_status_map.end())
+  // so we start on the node after
+  itr++;
+  for ( ; itr != node_status_map.end(); itr++)
   {
-    itr++;
     std::cout << itr->first << " :: " << itr->second << std::endl;
     if (itr->second == true)
     {
