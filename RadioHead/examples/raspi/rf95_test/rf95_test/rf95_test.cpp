@@ -985,7 +985,7 @@ int main(int argc, const char *argv[])
         }
         if (none)
         {
-          for (itr = node_status_map.begin(); itr != node_status_map.find(THIS_NODE_ADDRESS); itr++)
+          for (itr = node_status_map.begin(); itr != node_status_map.end(); itr++)
           {
             std::cout << itr->first << " :: " << itr->second << std::endl;
             if (itr->second == true)
