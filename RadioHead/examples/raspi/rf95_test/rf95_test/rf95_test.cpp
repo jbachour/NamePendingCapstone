@@ -554,10 +554,7 @@ int main(int argc, const char *argv[])
           last_broadcast_received_timer = millis();
           // Saque esta parte del if afuera, si esto no va aqui cambialo
           // rf95.waitAvailableTimeout(1000);
-          Serial.print("got broadcast from : 0x");
-          Serial.print(from);
-          Serial.print(": ");
-          Serial.println((char *)buf);
+        
           // timer since last boradcast received
           if ((int)buf[0] == RH_FLAGS_RETRY)
           {
@@ -645,13 +642,18 @@ int main(int argc, const char *argv[])
             file.close();
           }
 
-          if (file_exists)
+          if (file_exists || timeStamp == "") 
           {
             std::cout << "File already exists" << std::endl;
             file_exists = false;
           }
           else
           {
+            Serial.print("got broadcast from : 0x");
+            Serial.print(from);
+            Serial.print(": ");
+            Serial.println((char *)buf);
+
             fileWriter(path, fileName, packetContent);
 
             packet = DNP3PacketGenerator(packetContent);
@@ -673,13 +675,8 @@ int main(int argc, const char *argv[])
 
             std::cout << packet.time_stamp << "\n";
           }
-          else
-          {
-            printf("else\n");
-          }
         }
       }
-    }
     // 30 second timer since last broadcast received, if surpassed check who was last broadcast from, check in map if its your turn after this broadcast
     // go to state 1 and change other node to false, send changed node to other nodes
     // if not turn do nothing and wait for other nodes to fix problem
