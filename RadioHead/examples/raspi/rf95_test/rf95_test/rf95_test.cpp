@@ -198,19 +198,7 @@ void fileWriter(std::string path, std::string fileName, std::array<std::string, 
   }
 }
 
-// Verify if data received in buffer is the same as data created or first received in temp
-bool dataIsEqual(uint8_t buffer[], uint8_t cran[])
-{
-  for (int i = 2; i <= 25; i++)
-  {
-    printf("%d : %d\n", (int)buffer[i], (int)cran[i - 2]);
-    if ((int)buffer[i] != (int)cran[i - 2])
-    {
-      return false;
-    }
-  }
-  return true;
-}
+
 // verify if the last broadcast was sent from the node before your turn
 bool prevNode(int prevnode_id, std::map<int, bool> node_map)
 {
@@ -325,21 +313,21 @@ int main(int argc, const char *argv[])
 
   /* timeouts start */
   // retry to send your broadcast
-  unsigned long retrySend = 10000;
+  unsigned long retrySend = 15000;
   unsigned long retryStartTimer;
   // Node turn timer
-  unsigned long turnTimer = 45000;
+  unsigned long turnTimer = 60000;
   unsigned long startTurnTimer;
   // Join request resend timer
-  unsigned long joinResendTimer = 10000;
+  unsigned long joinResendTimer = 15000;
   unsigned long joinResendStartTimer;
   // Retry sending turn
-  unsigned long retry_turn_timeout = 10000;
+  unsigned long retry_turn_timeout = 15000;
   unsigned long retry_turn_timer;
   // wait 7 seconds in receive mode to make receiving join requests easier
   unsigned long wait_timer;
   // last broadcast received timout
-  unsigned long last_broadcast_received = 44000;
+  unsigned long last_broadcast_received = 60000;
   unsigned long last_broadcast_received_timer;
 
   /* timeouts end */
@@ -599,29 +587,6 @@ int main(int argc, const char *argv[])
             state = 3;
           }
           rf95.waitAvailableTimeout(1000);
-          // if (!dataIsEqual(buf, dupe_buf)) // temp data == buf do not store buf    data being created is stored in temp and after getting inside this if for nodes receiving it for first time
-          // {
-          //   // rf95.waitAvailableTimeout(1000);
-          //   Serial.print("got broadcast from : 0x");
-          //   Serial.print(from);
-          //   Serial.print(": ");
-          //   Serial.println((char *)buf);
-          //   // timer since last boradcast received
-          //   if ((int)buf[0] == RH_FLAGS_RETRY)
-          //   {
-          //     state = 3;
-          //   }
-          //   rf95.waitAvailableTimeout(1000);
-
-          //   for (int i = 0; i <= 25; i++)
-          //   {
-          //     dupe_buf[i] = (int)buf[i]; // save everything except first 2 space (flags)
-          //     if (buf[i] == '\0')
-          //     {
-          //       printf("break null\n");
-          //       break;
-          //     }
-          //   }
 
           std::string timeStamp = "";
           char temp[50] = "";
@@ -726,7 +691,7 @@ int main(int argc, const char *argv[])
         }
         last_broadcast_received_timer = millis();
       }
-      if (send_turn && (millis() - wait_timer >= 14000))
+      if (send_turn && (millis() - wait_timer >= 25000))
       {
         send_turn = false;
         printf("state 5\n");
