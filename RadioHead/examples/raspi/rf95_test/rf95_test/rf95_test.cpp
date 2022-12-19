@@ -38,8 +38,8 @@ void sig_handler(int sig);
 // Network of 6 nodes
 std::map<int, bool> node_status_map;
 #define NODE1_ADDRESS 11
-#define NODE2_ADDRESS 22
-#define THIS_NODE_ADDRESS 33
+#define THIS_NODE_ADDRESS 22
+#define NODE3_ADDRESS 33
 #define NODE4_ADDRESS 44
 #define NODE5_ADDRESS 55
 #define NODE6_ADDRESS 66
@@ -57,7 +57,7 @@ RHMesh manager(rf95, THIS_NODE_ADDRESS);
 int flag = 0;
 
 // File writer global variables
-std::string path = "/media/node3/node3ssd/Node Data/";
+std::string path = "/media/node2/node2ssd/Node Data/";
 std::string fileName = "";
 std::string packetTimeStamp = "packetTimeStamp";
 std::string logTimeStamp = "logFileTimeStamp";
@@ -304,8 +304,8 @@ int main(int argc, const char *argv[])
 
   /*Node map status initialise*/
   node_status_map.insert(std::pair<int, bool>(NODE1_ADDRESS, false));
-  node_status_map.insert(std::pair<int, bool>(NODE2_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(THIS_NODE_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE3_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE4_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE5_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE6_ADDRESS, false));
@@ -459,7 +459,7 @@ int main(int argc, const char *argv[])
           // If ack is the same as the message you send save your own data
           if (len == 25)
           {
-            fileName = "Node3 Data ";
+            fileName = "Node2 Data ";
             packetContent = packetReader(buf, timeStamp);
             fileWriter(path, fileName, packetContent);
           }
@@ -782,9 +782,9 @@ int main(int argc, const char *argv[])
           rf95.setModeRx();
         }
       }
-      else if ((itr = node_status_map.find(NODE2_ADDRESS))->second == true)
+      else if ((itr = node_status_map.find(NODE3_ADDRESS))->second == true)
       {
-        turn[1] = NODE2_ADDRESS;
+        turn[1] = NODE3_ADDRESS;
         printf("node1 turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
