@@ -328,6 +328,11 @@ int main(int argc, const char *argv[])
 
   /* timeouts end */
 
+  // Encryption key
+  unsigned char key[16] = { 0x01, 0x04, 0x02, 0x03, 0x01, 0x03, 0x04, 0x0a, 0x09, 0x0b, 0x07, 0x0f, 0x0c, 0x06, 0x03, 0x00 };
+
+	char message[50];
+
   // Keep track of how many times the node has resent the join request.
   int retry = 0;
   // Keep track of how many times the node has resent the turn message.
@@ -362,22 +367,29 @@ int main(int argc, const char *argv[])
       master_node = true;
       uint8_t datalen = sizeof(data);
       std::string timeStamp = "";
-      data[0] = RH_FLAGS_RETRY;
+      message[0] = RH_FLAGS_RETRY;
 
       // Providing a seed value
       srand((unsigned)time(NULL));
 
       // Generates random data simulating the data from the substation
-      data[2] = 1 + (rand() % 91);
-      data[3] = 1 + (rand() % 101);
-      data[4] = 1 + (rand() % 101);
-      data[5] = 1 + (rand() % 101);
-      data[6] = 0 + (rand() % 2);
-      printf("%d ", data[2]);
-      printf("%d ", data[3]);
-      printf("%d ", data[4]);
-      printf("%d ", data[5]);
-      printf("%d ", data[6]);
+      message[2] = 1 + (rand() % 91);
+      message[3] = 1 + (rand() % 101);
+      message[4] = 1 + (rand() % 101);
+      message[5] = 1 + (rand() % 101);
+      message[6] = 0 + (rand() % 2);
+
+      std::cout << "Message to encrypt:" << std::endl;
+      std::cout << (int)message[2];
+      std::cout << " ";
+      std::cout << (int)message[3];
+      std::cout << " ";
+      std::cout << (int)message[4];
+      std::cout << " ";
+      std::cout << (int)message[5];
+      std::cout << " ";
+      std::cout << (int)message[6];
+      std::cout << " ";
 
       timeStamp = getCurrentDateTime(packetTimeStamp);
 
@@ -385,9 +397,59 @@ int main(int argc, const char *argv[])
 
       for (int i = 7; i <= 25; i++)
       {
-        data[i] = timeStamp[j];
+        message[i] = timeStamp[j];
         j++;
+        std::cout << message[i];
       }
+
+      std::cout << std::endl;
+
+      // Pad message to 16 bytes
+      int originalLen = 26;
+
+      int paddedMessageLen = originalLen;
+
+      if ((paddedMessageLen % 16) != 0)
+      {
+        paddedMessageLen = (paddedMessageLen / 16 + 1) * 16;
+      }
+
+      unsigned char *paddedMessage = new unsigned char[paddedMessageLen];
+      for (int i = 0; i < paddedMessageLen; i++)
+      {
+        if (i >= originalLen)
+        {
+          paddedMessage[i] = 0;
+        }
+        else
+        {
+          paddedMessage[i] = message[i];
+        }
+      }
+
+      unsigned char *encryptedMessage = new unsigned char[paddedMessageLen];
+
+      unsigned char expandedKey[176];
+
+      KeyExpansion(key, expandedKey);
+
+      // Encrypt the message
+      for (int i = 0; i < paddedMessageLen; i += 16)
+      {
+        AESEncrypt(paddedMessage + i, expandedKey, encryptedMessage + i);
+      }
+
+      // Prints the encrypted message in hex form
+      std::cout << "Encrypted message in hex:" << std::endl;
+      for (int i = 0; i < paddedMessageLen; i++)
+      {
+        std::cout << std::hex << (int)encryptedMessage[i];
+        std::cout << " ";
+        data[i] = encryptedMessage[i];
+      }
+
+      std::cout << std::endl;
+
 
       startTurnTimer = millis();
       if (manager.sendto(data, datalen, RH_BROADCAST_ADDRESS))
@@ -407,9 +469,62 @@ int main(int argc, const char *argv[])
     /*State 2: Node receives acknowledgement from other node that its broadcast was received
     If the acknowledgement was not received, keep resending the message*/
     else if (state == 2) // recv ack
-    {
+    {  
       if (manager.recvfrom(buf, &buflen, &from))
       {
+        int encryptedMessageLen = 32;
+
+        unsigned char *_encryptedMessage = new unsigned char[encryptedMessageLen];
+        for (int i = 0; i < encryptedMessageLen; i++)
+        {
+          _encryptedMessage[i] = (unsigned char)buf[i + 2];
+        }
+
+        unsigned char expandedKeyDecrypt[176];
+
+        KeyExpansion(key, expandedKeyDecrypt);
+
+        unsigned char *decryptedMessage = new unsigned char[encryptedMessageLen];
+
+        // Decrypt the message
+        for (int i = 0; i < encryptedMessageLen; i += 16)
+        {
+          AESDecrypt(_encryptedMessage + i, expandedKeyDecrypt, decryptedMessage + i);
+        }
+
+        int decryptMessageLen = 26;
+
+        // Prints the decrypted message in hex form
+        std::cout << "Decrypted message in hex:" << std::endl;
+        for (int i = 0; i < decryptMessageLen; i++)
+        {
+          std::cout << std::hex << (int)decryptedMessage[i];
+          std::cout << " ";
+        }
+
+        std::cout << std::endl;
+
+        // Prints the decrypted message
+        std::cout << "Decrypted message:" << std::endl;
+
+        printf("%d", decryptedMessage[2]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[3]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[4]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[5]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[6]);
+        std::cout << " ";
+
+        for (int i = 7; i < decryptMessageLen; i++)
+        {
+          std::cout << decryptedMessage[i];
+        }
+
+        std::cout << std::endl;
+
         if ((int)buf[1] == THIS_NODE_ADDRESS) // If acknowledgement was directed towards this node, print it, verify its integrity and store it
         {
           Serial.print("Got acknowledgement from : 0x");
@@ -419,12 +534,12 @@ int main(int argc, const char *argv[])
 
           std::string timeStamp = "";
           char temp[50] = "";
-          int len = 2;
+          int len = 0;
 
           // Checks message integrity by comparing it with the ack you receive
           while (len < 25)
           {
-            if (buf[len] == data[len])
+            if (decryptedMessage[len] == message[len + 2])
             {
               len++;
             }
@@ -438,7 +553,7 @@ int main(int argc, const char *argv[])
 
           for (int i = 7; i <= 25; i++)
           {
-            temp[j] = buf[i];
+            temp[j] = decryptedMessage[i];
             j++;
           }
 
@@ -448,7 +563,7 @@ int main(int argc, const char *argv[])
           if (len == 25)
           {
             fileName = "Node3 Data ";
-            packetContent = packetReader(buf, timeStamp);
+            packetContent = packetReader(decryptedMessage, timeStamp);
             fileWriter(path, fileName, packetContent);
           }
           // rf95.waitAvailableTimeout(1000); // wait time available inside of 15s
@@ -578,6 +693,59 @@ int main(int argc, const char *argv[])
           /**DECRYPTION GOES HERE*/
           last_broadcast_received_timer = millis();
 
+          int encryptedMessageLen = 32;
+
+        unsigned char *_encryptedMessage = new unsigned char[encryptedMessageLen];
+        for (int i = 0; i < encryptedMessageLen; i++)
+        {
+          _encryptedMessage[i] = (unsigned char)buf[i + 2];
+        }
+
+        unsigned char expandedKeyDecrypt[176];
+
+        KeyExpansion(key, expandedKeyDecrypt);
+
+        unsigned char *decryptedMessage = new unsigned char[encryptedMessageLen];
+
+        // Decrypt the message
+        for (int i = 0; i < encryptedMessageLen; i += 16)
+        {
+          AESDecrypt(_encryptedMessage + i, expandedKeyDecrypt, decryptedMessage + i);
+        }
+
+        int decryptMessageLen = 26;
+
+        // Prints the decrypted message in hex form
+        std::cout << "Decrypted message in hex:" << std::endl;
+        for (int i = 0; i < decryptMessageLen; i++)
+        {
+          std::cout << std::hex << (int)decryptedMessage[i];
+          std::cout << " ";
+        }
+
+        std::cout << std::endl;
+
+        // Prints the decrypted message
+        std::cout << "Decrypted message:" << std::endl;
+
+        printf("%d", decryptedMessage[2]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[3]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[4]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[5]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[6]);
+        std::cout << " ";
+
+        for (int i = 7; i < decryptMessageLen; i++)
+        {
+          std::cout << decryptedMessage[i];
+        }
+
+        std::cout << std::endl;
+
           // timer since last broadcast received
           if ((int)buf[0] == RH_FLAGS_RETRY)
           {
@@ -593,13 +761,13 @@ int main(int argc, const char *argv[])
           //extract data
           for (int i = 7; i <= 25; i++)
           {
-            temp[j] = buf[i];
+            temp[j] = decryptedMessage[i];
             j++;
           }
 
           timeStamp = temp;
 
-          packetContent = packetReader(buf, timeStamp);
+          packetContent = packetReader(decryptedMessage, timeStamp);
 
           // Creates the name from the file according to the id of the node that send the packet
           if ((int)from == NODE1_ADDRESS)
