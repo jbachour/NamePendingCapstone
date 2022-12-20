@@ -759,10 +759,13 @@ int main(int argc, const char *argv[])
       {
         int encryptedMessageLen = 32;
 
+        int j = 0;
+
         unsigned char *_encryptedMessage = new unsigned char[encryptedMessageLen];
-        for (int i = 0; i < encryptedMessageLen; i++)
+        for (int i = 2; i < encryptedMessageLen; i++)
         {
-          _encryptedMessage[i] = (int) buf[i];
+          _encryptedMessage[j] = (int) buf[i];
+          j++;
         }
 
         unsigned char expandedKeyDecrypt[176];
@@ -810,9 +813,12 @@ int main(int argc, const char *argv[])
 
         std::cout << std::endl;
 
-        for (int i = 0; i < decryptMessageLen; i++)
+        int k = 0;
+
+        for (int i = 2; i < decryptMessageLen; i++)
         {
-          buf[i] = decryptedMessage[i];
+          buf[i] = decryptedMessage[k];
+          k++;
         }
 
         if ((int)buf[1] == THIS_NODE_ADDRESS) // If acknowledgement was directed towards this node, print it, verify its integrity and store it
@@ -904,65 +910,65 @@ int main(int argc, const char *argv[])
         int sleepTime = rand() % 4;
         sleep(sleepTime);
         printf("rand %d \n", sleepTime);
-        char message[50];
+        //char message[50];
         buf[0] = RH_FLAGS_ACK;
         buf[1] = from;
 
-        std::cout << "Message to encrypt:" << std::endl;
+        // std::cout << "Message to encrypt:" << std::endl;
 
-        for (int i = 0; i <= 25; i++)
-        {
-          message[i] = (int) buf[i];
-          std::cout << message[i];
-        }
+        // for (int i = 0; i <= 25; i++)
+        // {
+        //   message[i] = (int) buf[i];
+        //   std::cout << message[i];
+        // }
 
-        std::cout << std::endl;
+        // std::cout << std::endl;
 
-        // Pad message to 16 bytes
-        int originalLen = 26;
+        // // Pad message to 16 bytes
+        // int originalLen = 26;
 
-        int paddedMessageLen = originalLen;
+        // int paddedMessageLen = originalLen;
 
-        if ((paddedMessageLen % 16) != 0)
-        {
-          paddedMessageLen = (paddedMessageLen / 16 + 1) * 16;
-        }
+        // if ((paddedMessageLen % 16) != 0)
+        // {
+        //   paddedMessageLen = (paddedMessageLen / 16 + 1) * 16;
+        // }
 
-        unsigned char *paddedMessage = new unsigned char[paddedMessageLen];
-        for (int i = 0; i < paddedMessageLen; i++)
-        {
-          if (i >= originalLen)
-          {
-            paddedMessage[i] = 0;
-          }
-          else
-          {
-            paddedMessage[i] = message[i];
-          }
-        }
+        // unsigned char *paddedMessage = new unsigned char[paddedMessageLen];
+        // for (int i = 0; i < paddedMessageLen; i++)
+        // {
+        //   if (i >= originalLen)
+        //   {
+        //     paddedMessage[i] = 0;
+        //   }
+        //   else
+        //   {
+        //     paddedMessage[i] = message[i];
+        //   }
+        // }
 
-        unsigned char *encryptedMessage = new unsigned char[paddedMessageLen];
+        // unsigned char *encryptedMessage = new unsigned char[paddedMessageLen];
 
-        unsigned char expandedKey[176];
+        // unsigned char expandedKey[176];
 
-        KeyExpansion(key, expandedKey);
+        // KeyExpansion(key, expandedKey);
 
-        // Encrypt the message
-        for (int i = 0; i < paddedMessageLen; i += 16)
-        {
-          AESEncrypt(paddedMessage + i, expandedKey, encryptedMessage + i);
-        }
+        // // Encrypt the message
+        // for (int i = 0; i < paddedMessageLen; i += 16)
+        // {
+        //   AESEncrypt(paddedMessage + i, expandedKey, encryptedMessage + i);
+        // }
 
-        // Prints the encrypted message in hex form
-        std::cout << "Encrypted message in hex:" << std::endl;
-        for (int i = 0; i < paddedMessageLen; i++)
-        {
-          std::cout << std::hex << (int)encryptedMessage[i];
-          std::cout << " ";
-          buf[i] = encryptedMessage[i];
-        }
+        // // Prints the encrypted message in hex form
+        // std::cout << "Encrypted message in hex:" << std::endl;
+        // for (int i = 0; i < paddedMessageLen; i++)
+        // {
+        //   std::cout << std::hex << (int)encryptedMessage[i];
+        //   std::cout << " ";
+        //   buf[i] = encryptedMessage[i];
+        // }
 
-        std::cout << std::endl;
+        // std::cout << std::endl;
 
         if (manager.sendto(buf, buflen, RH_BROADCAST_ADDRESS))
         {
