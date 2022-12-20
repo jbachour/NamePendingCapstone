@@ -568,6 +568,14 @@ int main(int argc, const char *argv[])
         }
         else
         {
+          //Save data received to be rebroadcasted in state 13
+          int j=0;
+          for(int i=2; i<=sizeof(buf);i++){
+            dupe_buf[j]=buf[i];
+            j++;
+          }
+
+          /**DECRYPTION GOES HERE*/
           last_broadcast_received_timer = millis();
 
           // timer since last broadcast received
@@ -581,7 +589,8 @@ int main(int argc, const char *argv[])
           char temp[50] = "";
 
           int j = 0;
-
+          
+          //extract data
           for (int i = 7; i <= 25; i++)
           {
             temp[j] = buf[i];
