@@ -596,6 +596,7 @@ int main(int argc, const char *argv[])
 
   // Encryption key
   unsigned char key[16] = {0x01, 0x04, 0x02, 0x03, 0x01, 0x03, 0x04, 0x0a, 0x09, 0x0b, 0x07, 0x0f, 0x0c, 0x06, 0x03, 0x00};
+  char message[50];
 
   /* timeouts start */
   // retry to send your broadcast
@@ -652,7 +653,6 @@ int main(int argc, const char *argv[])
       master_node = true;
       uint8_t datalen = sizeof(data);
       std::string timeStamp = "";
-      char message[50];
       message[0] = RH_FLAGS_RETRY;
 
       // Providing a seed value
@@ -764,7 +764,7 @@ int main(int argc, const char *argv[])
         unsigned char *_encryptedMessage = new unsigned char[encryptedMessageLen];
         for (int i = 2; i < encryptedMessageLen; i++)
         {
-          _encryptedMessage[j] = (int) buf[i];
+          _encryptedMessage[j] = (unsigned char) buf[i];
           j++;
         }
 
@@ -835,7 +835,7 @@ int main(int argc, const char *argv[])
           // Checks message integrity by comparing it with the ack you receive
           while (len < 25)
           {
-            if (buf[len] == data[len])
+            if (buf[len] == message[len])
             {
               len++;
             }
@@ -910,7 +910,6 @@ int main(int argc, const char *argv[])
         int sleepTime = rand() % 4;
         sleep(sleepTime);
         printf("rand %d \n", sleepTime);
-        //char message[50];
         buf[0] = RH_FLAGS_ACK;
         buf[1] = from;
 
@@ -1044,7 +1043,7 @@ int main(int argc, const char *argv[])
           unsigned char *_encryptedMessage = new unsigned char[encryptedMessageLen];
           for (int i = 0; i < encryptedMessageLen; i++)
           {
-            _encryptedMessage[i] = (int) buf[i];
+            _encryptedMessage[i] = (unsigned char) buf[i];
           }
 
           unsigned char expandedKeyDecrypt[176];
@@ -1533,13 +1532,12 @@ int main(int argc, const char *argv[])
       sleep(2);
       if (!two_nodes)
       {
-        char message[50];
 
         std::cout << "Message to encrypt:" << std::endl;
         
         for (int i = 0; i <= 25; i++)
         {
-          message[i] = (int) dupe_buf[i];
+          message[i] = dupe_buf[i];
           std::cout << message[i];
         }
 
@@ -1590,6 +1588,7 @@ int main(int argc, const char *argv[])
         }
 
         std::cout << std::endl;
+        
         if (manager.sendto(dupe_buf, dupe_buflen, RH_BROADCAST_ADDRESS))
         {
           printf("Sending broadcast... \n");
