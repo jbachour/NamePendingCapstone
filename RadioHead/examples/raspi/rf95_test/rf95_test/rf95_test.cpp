@@ -204,7 +204,7 @@ bool prevNode(int prevnode_id, std::map<int, bool> node_map)
   itr = node_map.find(prevnode_id);
   // so we start on the node after
   itr++;
-  for (; itr != node_status_map.end(); itr++)
+  for (; itr != node_map.end(); itr++)
   {
     std::cout << itr->first << " :: " << itr->second << std::endl;
     printf(" while 1");
@@ -219,7 +219,7 @@ bool prevNode(int prevnode_id, std::map<int, bool> node_map)
       }
       break;
     }
-    if (itr == node_status_map.end())
+    if (itr == node_map.end())
     {
       none = true;
       break;
@@ -227,7 +227,7 @@ bool prevNode(int prevnode_id, std::map<int, bool> node_map)
   }
   if (none)
   {
-    for (itr = node_status_map.begin(); itr != node_status_map.end(); itr++)
+    for (itr = node_map.begin(); itr != node_map.end(); itr++)
     {
       std::cout << itr->first << " :: " << itr->second << std::endl;
       printf(" for 1");
@@ -482,7 +482,7 @@ int main(int argc, const char *argv[])
         if (manager.sendto(turn_ackarr, turn_ackarrlen, RH_BROADCAST_ADDRESS))
         {
           printf("Sending turn acknowledgement \n");
-          // wait for packet to be sent
+          // wait for packet to be sentlast_broadcast_received_timer = millis();
           rf95.waitPacketSent();
           printf("waited \n");
           rf95.setModeRx();
@@ -494,10 +494,9 @@ int main(int argc, const char *argv[])
       // If broadcast received was a normal broadcast, send a normal acknowledgement
       else
       {
-        srand((unsigned)time(NULL));
+        srand(THIS_NODE_ADDRESS);
         // random delay so not all nodes send an acknowledgement at the same time
-        int sleepTime = rand() % 6;
-        delay(sleepTime*1000);
+        int sleepTime = rand() % 4;
         sleep(sleepTime);
         printf("rand %d \n", sleepTime);
         buf[0] = RH_FLAGS_ACK;
@@ -521,6 +520,7 @@ int main(int argc, const char *argv[])
       {
         printf("len %d\n", buflen);
         printf("recvd something\n");
+        last_broadcast_received_timer = millis();
         if (buflen <= 30)
         {
           if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST) // Broadcast that indicates a new node joined the network
@@ -697,21 +697,10 @@ int main(int argc, const char *argv[])
       turn[0] = NSK;
       std::map<int, bool>::iterator itr;
       printf("I will send the turn now\n");
-      if ((itr = node_status_map.find(NODE3_ADDRESS))->second == true)
-      {
-        turn[1] = NODE3_ADDRESS;
-        printf("node 3's turn\n");
-        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
-        {
-          printf("sent turn\n");
-          state = 12;
-          rf95.setModeRx();
-        }
-      }
-      else if ((itr = node_status_map.find(NODE4_ADDRESS))->second == true)
+      if ((itr = node_status_map.find(NODE4_ADDRESS))->second == true)
       {
         turn[1] = NODE4_ADDRESS;
-        printf("node 4's turn\n");
+        printf("node 3's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
@@ -722,7 +711,7 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE5_ADDRESS))->second == true)
       {
         turn[1] = NODE5_ADDRESS;
-        printf("node 5's turn\n");
+        printf("node 4's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
@@ -733,6 +722,17 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE6_ADDRESS))->second == true)
       {
         turn[1] = NODE6_ADDRESS;
+        printf("node 5's turn\n");
+        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
+        {
+          printf("sent turn\n");
+          state = 12;
+          rf95.setModeRx();
+        }
+      }
+      else if ((itr = node_status_map.find(NODE1_ADDRESS))->second == true)
+      {
+        turn[1] = NODE1_ADDRESS;
         printf("node 6's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
@@ -878,9 +878,9 @@ int main(int argc, const char *argv[])
       }
       Serial.println((char *)buf);
       uint8_t datalen = sizeof(data);
-      srand((unsigned)time(NULL));
+      srand(THIS_NODE_ADDRESS);
       // random delay so not all nodes send an acknowledgement at the same time
-      int sleepTime = rand() % 6;
+      int sleepTime = rand() % 4;
       sleep(sleepTime);
       printf("rand %d \n", sleepTime);
       manager.sendto(data, datalen, RH_BROADCAST_ADDRESS);
