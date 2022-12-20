@@ -21,19 +21,12 @@ void sig_handler(int sig);
 // Max message length
 #define RH_MESH_MAX_MESSAGE_LEN 50
 
+// Flag for join request message
 #define RH_FLAGS_JOIN_REQUEST 0x1f
 
 // Pins used
 #define RFM95_CS_PIN 8
 #define RFM95_IRQ_PIN 4
-
-// Mesh network of 6 nodes
-#define CLIENT_ADDRESS 1
-#define SERVER_ADDRESS_1 2
-#define SERVER_ADDRESS_2 3
-#define SERVER_ADDRESS_3 4
-#define SERVER_ADDRESS_4 5
-#define SERVER_ADDRESS_5 6
 
 // Network of 6 nodes
 std::map<int, bool> node_status_map;
@@ -64,7 +57,7 @@ std::string logTimeStamp = "logFileTimeStamp";
 bool file_exists = false;
 
 // Indicates the start state of the node.
-int state = 7;
+int state = 7; // All nodes start in join request state
 
 // DNP3 packet struct
 struct DNP3Packet
@@ -83,8 +76,8 @@ struct DNP3Packet
   std::string time_stamp;
 };
 
-// Create a timestamp using the computer's date and time and returns it as a sting.
-// Recieved a string that would tell the fuction which format to use for the timestamp.
+/** Create a timestamp using the computer's date and time and returns it as a sting.
+Received a string that would tell the fuction which format to use for the timestamp.*/
 std::string getCurrentDateTime(std::string s)
 {
   time_t now = time(0);
@@ -106,8 +99,8 @@ std::string getCurrentDateTime(std::string s)
   return std::string(timeStamp);
 }
 
-// Recieved a array containing the data from the LoRa packet.
-// It stored the data in a struct simulating the DNP3Packet and returns it.
+/* Received an array containing the data from the LoRa packet.
+It stores the data in a struct simulating the DNP3Packet and returns it.*/
 DNP3Packet DNP3PacketGenerator(std::array<std::string, 10> packetContent)
 {
   DNP3Packet packet;
@@ -133,8 +126,8 @@ DNP3Packet DNP3PacketGenerator(std::array<std::string, 10> packetContent)
   return packet;
 }
 
-// Recieved the array where the data of the LoRa packet is stored when the message is send and the timestamp of when the packet was created.
-// Extracts the data from the packet and returns a string array with the data and the timestamp of the packet
+/* Received the array where the data of the LoRa packet is stored when the message is sent and the timestamp of when the packet was created.
+ Extracts the data from the packet and returns a string array with the data and the timestamp of the packet*/
 std::array<std::string, 10> packetReader(uint8_t data[], std::string timeStamp)
 {
   std::array<std::string, 10> packetContent;
@@ -149,9 +142,9 @@ std::array<std::string, 10> packetReader(uint8_t data[], std::string timeStamp)
   return packetContent;
 }
 
-// This function recieve the path to the where the file is gonna be save, the name of the file and a array containing the data of the packetContent.
-// It creates a file of type csv and writes a file in csv format of the data from the packet.
-// It creates a log file of type txt that contains the date the file was created, the name of the file and its directory path .
+/* This function receives the path to the where the file is gonna be saved, the name of the file and a array containing the data of the packetContent.
+ It creates a file of type csv and writes a file in csv format of the data from the packet.
+ It creates a log file of type txt that contains the date the file was created, the name of the file and its directory path .*/
 void fileWriter(std::string path, std::string fileName, std::array<std::string, 10> packetContent)
 {
   std::string timeStamp = "";
@@ -198,10 +191,10 @@ void fileWriter(std::string path, std::string fileName, std::array<std::string, 
   }
 }
 
-// verify if the last broadcast was sent from the node before your turn
+/**Method to verify if the last broadcast was sent from the node before your turn */
 bool prevNode(int prevnode_id, std::map<int, bool> node_map)
 {
-  bool var = false;
+  bool var = false; // boolean that indicates if it is prevNode
   bool none = false;
   std::map<int, bool>::iterator itr;
   std::map<int, bool>::iterator pol;
@@ -215,12 +208,12 @@ bool prevNode(int prevnode_id, std::map<int, bool> node_map)
   {
     std::cout << itr->first << " :: " << itr->second << std::endl;
     printf(" while 1");
-    if (itr->second == true)
+    if (itr->second == true) // If the node is "up"
     {
-      if (itr->first == THIS_NODE_ADDRESS)
+      if (itr->first == THIS_NODE_ADDRESS) // If the node's id is MY id
       {
         itr = node_map.find(prevnode_id);
-        itr->second = false;
+        itr->second = false; // change previous node's status to false
         var = true;
         break;
       }
@@ -289,7 +282,7 @@ int main(int argc, const char *argv[])
   printf("\nRFM 95 Settings:\n");
   printf("Frequency= %d MHz\n", (uint16_t)RFM95_FREQUENCY);
   printf("Power= %d\n", (uint8_t)RFM95_TXPOWER);
-  printf("This Address= %d\n", CLIENT_ADDRESS);
+  printf("This Address= %d\n", THIS_NODE_ADDRESS);
   rf95.setTxPower(RFM95_TXPOWER, true);
   rf95.setFrequency(RFM95_FREQUENCY);
   rf95.setModemConfig(RH_RF95::Bw125Cr48Sf4096);
@@ -304,7 +297,7 @@ int main(int argc, const char *argv[])
   node_status_map.insert(std::pair<int, bool>(NODE5_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE6_ADDRESS, false));
 
-  // File wruter variables
+  // File wrIter variables
   std::array<std::string, 10> packetContent;
   DNP3Packet packet;
 
@@ -356,13 +349,13 @@ int main(int argc, const char *argv[])
   // Keep track of who sent the join request
   uint8_t _from;
 
-  uint8_t from, to;
+  uint8_t from, to; // stores the address of the node that the message was from, and the destination address respectively
   uint8_t buflen = sizeof(buf);
   uint8_t dupe_buflen = sizeof(buf);
 
   while (!flag)
   {
-
+    /*State 1: Node sends broadcast of DNP3 packet*/
     if (state == 1) // sending
     {
       sleep(2);
@@ -411,14 +404,15 @@ int main(int argc, const char *argv[])
       }
       retryStartTimer = millis();
     }
+    /*State 2: Node receives acknowledgement from other node that its broadcast was received
+    If the acknowledgement was not received, keep resending the message*/
     else if (state == 2) // recv ack
     {
       if (manager.recvfrom(buf, &buflen, &from))
       {
-        if ((int)buf[1] == THIS_NODE_ADDRESS)
+        if ((int)buf[1] == THIS_NODE_ADDRESS) // If acknowledgement was directed towards this node, print it, verify its integrity and store it
         {
-          // rf95.waitAvailableTimeout(1000);
-          Serial.print("got ack from : 0x");
+          Serial.print("Got acknowledgement from : 0x");
           Serial.print(from);
           Serial.print(": ");
           Serial.println((char *)&buf);
@@ -461,11 +455,11 @@ int main(int argc, const char *argv[])
           state = 13;
         }
       }
-      else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer))
+      else if (millis() - retryStartTimer >= retrySend && (millis() - startTurnTimer <= turnTimer)) // Has not received ackowledgement and its turn is not over
       {
         state = 6; // retry send
       }
-      else if (millis() - startTurnTimer >= turnTimer)
+      else if (millis() - startTurnTimer >= turnTimer) ////Has not received ackowledgement and its turn is  over
       {
         state = 4; // send broadcast - tell next node its his turn
         printf("turn over timeout\n");
@@ -475,8 +469,10 @@ int main(int argc, const char *argv[])
       wait_timer = millis();
       last_broadcast_received_timer = millis();
     }
+    /*State 3: Node sends acknowledgement that a broadcast or a turn broadcast was received*/
     else if (state == 3) // send ack and turn ack
     {
+      // If broadcast received was a turn broadcast, send a turn acknowledgement
       if (turn_ack == true)
       {
         uint8_t turn_ackarr[50];
@@ -485,18 +481,17 @@ int main(int argc, const char *argv[])
         turn_ackarr[1] = from;
         if (manager.sendto(turn_ackarr, turn_ackarrlen, RH_BROADCAST_ADDRESS))
         {
-          printf("Sending turn ack \n");
+          printf("Sending turn acknowledgement \n");
           // wait for packet to be sent
           rf95.waitPacketSent();
           printf("waited \n");
           rf95.setModeRx();
           state = 1;
           turn_ack = false;
-          // sleep(2);
         }
         startTurnTimer = millis();
       }
-      // normal ack
+      // If broadcast received was a normal broadcast, send a normal acknowledgement
       else
       {
         srand((unsigned)time(NULL));
@@ -509,7 +504,7 @@ int main(int argc, const char *argv[])
         buf[1] = from;
         if (manager.sendto(buf, buflen, RH_BROADCAST_ADDRESS))
         {
-          printf("Sending ack \n");
+          printf("Sending acknowledgement \n");
           // wait for packet to be sent
           rf95.waitPacketSent();
           printf("waited \n");
@@ -519,6 +514,7 @@ int main(int argc, const char *argv[])
       }
       sleep(2);
     }
+    /*State 4: Node receives: message that indicates a new node joined the network, join request, turn broadcast, acknowledgement */
     else if (state == 4) // recv
     {
       if (manager.recvfrom(buf, &buflen, &from))
@@ -527,10 +523,9 @@ int main(int argc, const char *argv[])
         printf("recvd something\n");
         if (buflen <= 30)
         {
-          // if i did not receive a join request
-          if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST)
+          if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST) // Broadcast that indicates a new node joined the network
           {
-            printf("got new node\n");
+            printf(" A new node joined the network\n");
             std::map<int, bool>::iterator itr;
             itr = node_status_map.find((int)buf[2]);
             printf("id %d, %d, buf %d\n", itr->first, itr->second, (int)buf[2]);
@@ -541,15 +536,13 @@ int main(int argc, const char *argv[])
               new_node_id = (int)buf[2];
             }
           }
-          // buflen <13
-          if (buflen <= 13)
+          if (buflen <= 13) // Turn Broadcast was received
           {
-            printf("recv a turn msg\n");
+            printf("Received a turn broadcast\n");
             printf("id %d\n", (int)buf[1]);
-            if ((int)buf[1] == THIS_NODE_ADDRESS)
+            if ((int)buf[1] == THIS_NODE_ADDRESS) // Verify if it is this node's turn
             {
-              // rf95.waitAvailableTimeout(1000);
-              Serial.print("got message THAT ITS MY TURN : 0x");
+              Serial.print("Got message that it's MY turn: 0x");
               Serial.print(from);
               Serial.print(": ");
               Serial.println((char *)buf);
@@ -561,25 +554,23 @@ int main(int argc, const char *argv[])
           }
           buflen = 50;
         }
-        else if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST)
+        else if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST) // Join Request Broadcast was received
         {
-          printf("got join req\n");
+          printf("Got join request \n");
           state = 9;
           _from = from;
           new_node = true;
           new_node_id = _from;
         }
-        else if ((int)buf[0] == RH_FLAGS_ACK)
+        else if ((int)buf[0] == RH_FLAGS_ACK) // Acknowledgement that is not for this node
         {
-          printf("got ack\n");
+          printf("Got acknowledgement, but it's not for me!\n");
         }
         else
         {
           last_broadcast_received_timer = millis();
-          // Saque esta parte del if afuera, si esto no va aqui cambialo
-          // rf95.waitAvailableTimeout(1000);
 
-          // timer since last boradcast received
+          // timer since last broadcast received
           if ((int)buf[0] == RH_FLAGS_RETRY)
           {
             state = 3;
@@ -601,7 +592,7 @@ int main(int argc, const char *argv[])
 
           packetContent = packetReader(buf, timeStamp);
 
-          // Creates the name fro the file according to the id of the node that send the packet
+          // Creates the name from the file according to the id of the node that send the packet
           if ((int)from == NODE1_ADDRESS)
           {
             fileName = "Node1 Data ";
@@ -650,7 +641,7 @@ int main(int argc, const char *argv[])
           }
           else
           {
-            Serial.print("got broadcast from : 0x");
+            Serial.print("Got broadcast from : 0x");
             Serial.print(from);
             Serial.print(": ");
             Serial.println((char *)buf);
@@ -697,6 +688,7 @@ int main(int argc, const char *argv[])
         state = 5;
       }
     }
+    /*State 5: Node sends turn broadcast */
     else if (state == 5) // send turn broadcast
     {
       sleep(2);
@@ -704,11 +696,22 @@ int main(int argc, const char *argv[])
       uint8_t turnlen = sizeof(turn);
       turn[0] = NSK;
       std::map<int, bool>::iterator itr;
-      printf("im going to send turn\n");
-      if ((itr = node_status_map.find(NODE4_ADDRESS))->second == true)
+      printf("I will send the turn now\n");
+      if ((itr = node_status_map.find(NODE3_ADDRESS))->second == true)
+      {
+        turn[1] = NODE3_ADDRESS;
+        printf("node 3's turn\n");
+        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
+        {
+          printf("sent turn\n");
+          state = 12;
+          rf95.setModeRx();
+        }
+      }
+      else if ((itr = node_status_map.find(NODE4_ADDRESS))->second == true)
       {
         turn[1] = NODE4_ADDRESS;
-        printf("node3 turn\n");
+        printf("node 4's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
@@ -719,7 +722,7 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE5_ADDRESS))->second == true)
       {
         turn[1] = NODE5_ADDRESS;
-        printf("node4 turn\n");
+        printf("node 5's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
@@ -730,18 +733,7 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE6_ADDRESS))->second == true)
       {
         turn[1] = NODE6_ADDRESS;
-        printf("node5 turn\n");
-        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
-        {
-          printf("sent turn\n");
-          state = 12;
-          rf95.setModeRx();
-        }
-      }
-      else if ((itr = node_status_map.find(NODE1_ADDRESS))->second == true)
-      {
-        turn[1] = NODE1_ADDRESS;
-        printf("node6 turn\n");
+        printf("node 6's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
@@ -762,12 +754,11 @@ int main(int argc, const char *argv[])
       }
       else
       {
-        printf("im alone\n");
+        printf("There's no one else in the network to send the turn to\n");
         two_nodes = false;
         state = 11; // you are the only node in the network. wait for a join req
         rf95.setModeRx();
       }
-      // retryStartTimer = millis();
 
       // start retry turn timer
       retry_turn_timer = millis();
@@ -776,6 +767,7 @@ int main(int argc, const char *argv[])
       printf("tx %d\n", rf95.txGood());
       last_broadcast_received_timer = millis();
     }
+    /*State 6: Node retries to send broadcast*/
     else if (state == 6) // retry send
     {
       uint8_t datalen = sizeof(data);
@@ -790,13 +782,14 @@ int main(int argc, const char *argv[])
       }
       retryStartTimer = millis();
     }
+    /*State 7: Node sends a join request */
     else if (state == 7) // join-send
     {
       // join request data
-      printf("join send start\n");
+      printf("Join request started\n");
       uint8_t join[50];
       uint8_t joinlen = sizeof(join);
-      join[0] = RH_FLAGS_JOIN_REQUEST;
+      join[0] = RH_FLAGS_JOIN_REQUEST; // Flag that indicates join request
       join[1] = THIS_NODE_ADDRESS;
 
       /*send a broadcast with a join request message and setting join request flag*/
@@ -805,46 +798,29 @@ int main(int argc, const char *argv[])
       // change to join-recv state
       state = 8;
       joinResendStartTimer = millis();
-      printf("join send end\n");
+      printf("Join request ended\n");
       printf("tx %d \n", rf95.txGood());
     }
+    /*State 8: Node receives join request acknowledgement*/
     else if (state == 8) // join-recv-ack
     {
       bool recvd = false;
       // join-recv start time for 10 second timeout
       if (manager.recvfrom(buf, &buflen, &from))
       {
-        printf("join recv ack start\n");
-        // uint8_t arr[50];
-        //  sacar la info recibida del array
-        //  network session key, nodes and status of nodes in the network
-        //  cambiar a recv mode normal esperando mensaje que es mi turno
+        printf("Join request acknowledgement receive started\n");
+
         if ((int)buf[0] == RH_FLAGS_JOIN_REQUEST)
         {
-          printf("recvd join ack\n");
+          printf("Received join request acknowledgement\n");
           printf((char *)buf);
-          // take from buf nodes that are active in network
-          //   for (int i = 1; i < buflen; i++)
-          //   {
-          //     printf("buf %d\n", (int) buf[i]);
-          //     printf("arr %d\n", arr[i - 1]);
-          //     if (buf[i] == '\0')
-          //     {
-          //       printf("break null");
-          //       break;
-          //     }
-          //     arr[i - 1] = (int)buf[i];
-          //   }
+
           std::map<int, bool>::iterator itr;
           for (int i = 1; i <= buflen; i++)
           {
             printf("id %d\n", (int)buf[i]);
             itr = node_status_map.find((int)buf[i]);
             itr->second = true;
-            // if (itr != node_status_map.end())
-            // {
-            //   itr->second = true;
-            // }
 
             if (buf[i] == '\0')
             {
@@ -881,11 +857,11 @@ int main(int argc, const char *argv[])
         retry++;
         printf("retry join send\n");
       }
-      // printf("join recv ack end\n");
     }
+    /*State 9: Node sends join request acknowledgement */
     else if (state == 9) // join-send-ack
     {
-      printf("join send ack start\n");
+      printf("Sending join request acknowdledgement...\n");
       uint8_t data[50];
       std::map<int, bool>::iterator itr;
       int i = 2;
@@ -924,8 +900,9 @@ int main(int argc, const char *argv[])
       {
         itr->second = true;
       }
-      printf("join send ack end\n");
+      printf("Sent join request acknowledgement\n");
     }
+    /*State 10: Node creates the network */
     else if (state == 10) // create new network
     {
       NSK = random(1000, 9999);
@@ -937,9 +914,10 @@ int main(int argc, const char *argv[])
       {
         itr->second = true;
       }
-      printf("created network\n");
+      printf("Created network\n");
     }
-    else if (state == 11) // recv node join req, send join-ack, tell new node its his turn?
+    /*State 11: Node receives join request*/
+    else if (state == 11)
     {
       if (manager.recvfrom(buf, &buflen, &from))
       {
@@ -954,6 +932,7 @@ int main(int argc, const char *argv[])
         printf("recv node join req send join ack end\n");
       }
     }
+    /*State 12: Node receives turn acknowledgement */
     else if (state == 12) // receive turn acknowledgement
     {
       if (manager.recvfrom(buf, &buflen, &from))
@@ -1016,9 +995,10 @@ int main(int argc, const char *argv[])
       }
       // sleep(4);
     }
+    /*State 13: Node sends received data*/
     else if (state == 13) // rebroadcast received data
     {
-      printf("state 13 start\n");
+      printf("state 13:I will attempt to rebroadcast my saved data\n");
       sleep(2);
       if (!two_nodes)
       {
@@ -1043,9 +1023,10 @@ int main(int argc, const char *argv[])
         printf("state 14\n");
       }
       sleep(2);
-      printf("state 13 end\n");
+      printf("state 13 end: I finished brodcasting my data\n");
       wait_timer = millis();
     }
+    /*State 14: Node notifies other nodes that there is a new node in the network */
     else if (state == 14) // sending new node
     {
       printf("state 14 start\n");
@@ -1065,7 +1046,7 @@ int main(int argc, const char *argv[])
       new_node = false;
       printf("got to 4\n");
       state = 4;
-      printf("state 13 end\n");
+      printf("state 14 end\n");
       wait_timer = millis();
     }
   }
