@@ -33,9 +33,9 @@ void sig_handler(int sig);
 
 // Network of 6 nodes
 std::map<int, bool> node_status_map;
-#define NODE1_ADDRESS 11
+#define THIS_NODE_ADDRESS 11
 #define NODE2_ADDRESS 22
-#define THIS_NODE_ADDRESS 33
+#define NODE3_ADDRESS 33
 #define NODE4_ADDRESS 44
 #define NODE5_ADDRESS 55
 #define NODE6_ADDRESS 66
@@ -53,7 +53,7 @@ RHMesh manager(rf95, THIS_NODE_ADDRESS);
 int flag = 0;
 
 // File writer global variables
-std::string path = "/media/node3/node3ssd/Node Data/";
+std::string path = "/media/node1/node1ssd/Node Data/";
 std::string fileName = "";
 std::string packetTimeStamp = "packetTimeStamp";
 std::string logTimeStamp = "logFileTimeStamp";
@@ -577,9 +577,9 @@ int main(int argc, const char *argv[])
   /* End Manager/Driver settings code */
 
   /*Node map status initialise*/
-  node_status_map.insert(std::pair<int, bool>(NODE1_ADDRESS, false));
-  node_status_map.insert(std::pair<int, bool>(NODE2_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(THIS_NODE_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE2_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE3_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE4_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE5_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE6_ADDRESS, false));
@@ -666,15 +666,15 @@ int main(int argc, const char *argv[])
       message[6] = 0 + (rand() % 2);
 
       std::cout << "Message to encrypt:" << std::endl;
-      std::cout << (int)message[2];
+      printf("%d", message[2]);
       std::cout << " ";
-      std::cout << (int)message[3];
+      printf("%d", message[3]);
       std::cout << " ";
-      std::cout << (int)message[4];
+      printf("%d", message[4]);
       std::cout << " ";
-      std::cout << (int)message[5];
+      printf("%d", message[5]);
       std::cout << " ";
-      std::cout << (int)message[6];
+      printf("%d", message[6]);
       std::cout << " ";
 
       timeStamp = getCurrentDateTime(packetTimeStamp);
@@ -691,7 +691,7 @@ int main(int argc, const char *argv[])
       std::cout << std::endl;
 
       // Pad message to 16 bytes
-      int originalLen = 25;
+      int originalLen = 26;
 
       int paddedMessageLen = originalLen;
 
@@ -777,7 +777,7 @@ int main(int argc, const char *argv[])
           AESDecrypt(_encryptedMessage + i, expandedKeyDecrypt, decryptedMessage + i);
         }
 
-        int decryptMessageLen = 25;
+        int decryptMessageLen = 26;
 
         // Prints the decrypted message in hex form
         std::cout << "Decrypted message in hex:" << std::endl;
@@ -827,7 +827,7 @@ int main(int argc, const char *argv[])
           int len = 2;
 
           // Checks message integrity by comparing it with the ack you receive
-          while (len < 25)
+          while (len < 26)
           {
             if (buf[len] == data[len])
             {
@@ -841,7 +841,7 @@ int main(int argc, const char *argv[])
 
           int j = 0;
 
-          for (int i = 7; i <= 25; i++)
+          for (int i = 7; i <= 26; i++)
           {
             temp[j] = buf[i];
             j++;
@@ -850,9 +850,9 @@ int main(int argc, const char *argv[])
           timeStamp = temp;
 
           // If ack is the same as the message you send save your own data
-          if (len == 25)
+          if (len == 26)
           {
-            fileName = "Node3 Data ";
+            fileName = "Node1 Data ";
             packetContent = packetReader(buf, timeStamp);
             fileWriter(path, fileName, packetContent);
           }
@@ -919,7 +919,7 @@ int main(int argc, const char *argv[])
         std::cout << std::endl;
 
         // Pad message to 16 bytes
-        int originalLen = 25;
+        int originalLen = 26;
 
         int paddedMessageLen = originalLen;
 
@@ -1053,7 +1053,7 @@ int main(int argc, const char *argv[])
             AESDecrypt(_encryptedMessage + i, expandedKeyDecrypt, decryptedMessage + i);
           }
 
-          int decryptMessageLen = 25;
+          int decryptMessageLen = 26;
 
           // Prints the decrypted message in hex form
           std::cout << "Decrypted message in hex:" << std::endl;
@@ -1114,7 +1114,7 @@ int main(int argc, const char *argv[])
           packetContent = packetReader(buf, timeStamp);
 
           // Creates the name from the file according to the id of the node that send the packet
-          if ((int)from == NODE1_ADDRESS)
+          if ((int)from == THIS_NODE_ADDRESS)
           {
             fileName = "Node1 Data ";
           }
@@ -1122,7 +1122,7 @@ int main(int argc, const char *argv[])
           {
             fileName = "Node2 Data ";
           }
-          else if ((int)from == THIS_NODE_ADDRESS)
+          else if ((int)from == NODE3_ADDRESS)
           {
             fileName = "Node3 Data ";
           }
@@ -1218,9 +1218,9 @@ int main(int argc, const char *argv[])
       turn[0] = NSK;
       std::map<int, bool>::iterator itr;
       printf("I will send the turn now\n");
-      if ((itr = node_status_map.find(NODE4_ADDRESS))->second == true)
+      if ((itr = node_status_map.find(NODE3_ADDRESS))->second == true)
       {
-        turn[1] = NODE4_ADDRESS;
+        turn[1] = NODE3_ADDRESS;
         printf("node 3's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
@@ -1251,9 +1251,9 @@ int main(int argc, const char *argv[])
           rf95.setModeRx();
         }
       }
-      else if ((itr = node_status_map.find(NODE1_ADDRESS))->second == true)
+      else if ((itr = node_status_map.find(NODE2_ADDRESS))->second == true)
       {
-        turn[1] = NODE1_ADDRESS;
+        turn[1] = NODE2_ADDRESS;
         printf("node 6's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
@@ -1536,7 +1536,7 @@ int main(int argc, const char *argv[])
         std::cout << std::endl;
 
         // Pad message to 16 bytes
-        int originalLen = 25;
+        int originalLen = 26;
 
         int paddedMessageLen = originalLen;
 
