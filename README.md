@@ -45,7 +45,7 @@ make clean && make
 
 Jamiliette Bachour, [@jbachour](https://github.com/jbachour) 
 <br>Angel Hernandez, [@AngelHernandezDenis](https://github.com/AngelHernandezDenis)
-<br>Ismael Rios, [@ismael-rios1](https://github.com/ismael-rios-1)
+<br>Ismael Rios, [@ismael-rios1](https://github.com/ismael-rios1)
 
 ## Version History
 * 0.1
