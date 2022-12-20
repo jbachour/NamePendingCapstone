@@ -1523,8 +1523,10 @@ int main(int argc, const char *argv[])
       sleep(2);
       if (!two_nodes)
       {
-        std::cout << "Message to encrypt:" << std::endl;
+        char message[50];
 
+        std::cout << "Message to encrypt:" << std::endl;
+        
         for (int i = 0; i <= 25; i++)
         {
           message[i] = dupe_buf[i];
