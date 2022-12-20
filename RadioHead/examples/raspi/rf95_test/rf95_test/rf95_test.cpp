@@ -8,6 +8,9 @@
 #include <array>
 #include <string.h>
 #include <time.h>
+#include <cstring>
+#include <sstream>
+#include "structures.h"
 
 // Function Definitions
 void sig_handler(int sig);
@@ -96,7 +99,7 @@ std::string getCurrentDateTime(std::string s)
     strftime(timeStamp, sizeof(timeStamp), "%Y-%m-%d_%H-%M-%S", &timeStruct);
   }
 
-  return std::string(timeStamp);
+  return timeStamp;
 }
 
 /* Received an array containing the data from the LoRa packet.
@@ -188,6 +191,290 @@ void fileWriter(std::string path, std::string fileName, std::array<std::string, 
       file.close();
       fileWasCreated = false;
     }
+  }
+}
+
+// Encrypt fuctions
+
+/* Serves as the initial round during encryption
+ * AddRoundKey is simply an XOR of a 128-bit block with the 128-bit key.
+ */
+void AddRoundKey(unsigned char *state, unsigned char *roundKey)
+{
+  for (int i = 0; i < 16; i++)
+  {
+    state[i] ^= roundKey[i];
+  }
+}
+
+/* Perform substitution to each of the 16 bytes
+ * Uses S-box as lookup table
+ */
+void SubBytesEncryp(unsigned char *state)
+{
+  for (int i = 0; i < 16; i++)
+  {
+    state[i] = s[state[i]];
+  }
+}
+
+// Shift left, adds diffusion
+void ShiftRowsEncryp(unsigned char *state)
+{
+  unsigned char tmp[16];
+
+  /* Column 1 */
+  tmp[0] = state[0];
+  tmp[1] = state[5];
+  tmp[2] = state[10];
+  tmp[3] = state[15];
+
+  /* Column 2 */
+  tmp[4] = state[4];
+  tmp[5] = state[9];
+  tmp[6] = state[14];
+  tmp[7] = state[3];
+
+  /* Column 3 */
+  tmp[8] = state[8];
+  tmp[9] = state[13];
+  tmp[10] = state[2];
+  tmp[11] = state[7];
+
+  /* Column 4 */
+  tmp[12] = state[12];
+  tmp[13] = state[1];
+  tmp[14] = state[6];
+  tmp[15] = state[11];
+
+  for (int i = 0; i < 16; i++)
+  {
+    state[i] = tmp[i];
+  }
+}
+
+/* MixColumns uses mul2, mul3 look-up tables
+ * Source of diffusion
+ */
+void MixColumns(unsigned char *state)
+{
+  unsigned char tmp[16];
+
+  tmp[0] = (unsigned char)mul2[state[0]] ^ mul3[state[1]] ^ state[2] ^ state[3];
+  tmp[1] = (unsigned char)state[0] ^ mul2[state[1]] ^ mul3[state[2]] ^ state[3];
+  tmp[2] = (unsigned char)state[0] ^ state[1] ^ mul2[state[2]] ^ mul3[state[3]];
+  tmp[3] = (unsigned char)mul3[state[0]] ^ state[1] ^ state[2] ^ mul2[state[3]];
+
+  tmp[4] = (unsigned char)mul2[state[4]] ^ mul3[state[5]] ^ state[6] ^ state[7];
+  tmp[5] = (unsigned char)state[4] ^ mul2[state[5]] ^ mul3[state[6]] ^ state[7];
+  tmp[6] = (unsigned char)state[4] ^ state[5] ^ mul2[state[6]] ^ mul3[state[7]];
+  tmp[7] = (unsigned char)mul3[state[4]] ^ state[5] ^ state[6] ^ mul2[state[7]];
+
+  tmp[8] = (unsigned char)mul2[state[8]] ^ mul3[state[9]] ^ state[10] ^ state[11];
+  tmp[9] = (unsigned char)state[8] ^ mul2[state[9]] ^ mul3[state[10]] ^ state[11];
+  tmp[10] = (unsigned char)state[8] ^ state[9] ^ mul2[state[10]] ^ mul3[state[11]];
+  tmp[11] = (unsigned char)mul3[state[8]] ^ state[9] ^ state[10] ^ mul2[state[11]];
+
+  tmp[12] = (unsigned char)mul2[state[12]] ^ mul3[state[13]] ^ state[14] ^ state[15];
+  tmp[13] = (unsigned char)state[12] ^ mul2[state[13]] ^ mul3[state[14]] ^ state[15];
+  tmp[14] = (unsigned char)state[12] ^ state[13] ^ mul2[state[14]] ^ mul3[state[15]];
+  tmp[15] = (unsigned char)mul3[state[12]] ^ state[13] ^ state[14] ^ mul2[state[15]];
+
+  for (int i = 0; i < 16; i++)
+  {
+    state[i] = tmp[i];
+  }
+}
+
+/* Each round operates on 128 bits at a time
+ * The number of rounds is defined in AESEncrypt()
+ */
+void RoundEncryp(unsigned char *state, unsigned char *key)
+{
+  SubBytesEncryp(state);
+  ShiftRowsEncryp(state);
+  MixColumns(state);
+  AddRoundKey(state, key);
+}
+
+// Same as Round() except it doesn't mix columns
+void FinalRound(unsigned char *state, unsigned char *key)
+{
+  SubBytesEncryp(state);
+  ShiftRowsEncryp(state);
+  AddRoundKey(state, key);
+}
+
+/* The AES encryption function
+ * Organizes the confusion and diffusion steps into one function
+ */
+void AESEncrypt(unsigned char *message, unsigned char *expandedKey, unsigned char *encryptedMessage)
+{
+  unsigned char state[16]; // Stores the first 16 bytes of original message
+
+  for (int i = 0; i < 16; i++)
+  {
+    state[i] = message[i];
+  }
+
+  int numberOfRounds = 9;
+
+  AddRoundKey(state, expandedKey); // Initial round
+
+  for (int i = 0; i < numberOfRounds; i++)
+  {
+    RoundEncryp(state, expandedKey + (16 * (i + 1)));
+  }
+
+  FinalRound(state, expandedKey + 160);
+
+  // Copy encrypted state to buffer
+  for (int i = 0; i < 16; i++)
+  {
+    encryptedMessage[i] = state[i];
+  }
+}
+
+// Decrypt fuctions
+
+/* Used in Round() and serves as the final round during decryption
+ * SubRoundKey is simply an XOR of a 128-bit block with the 128-bit key.
+ * So basically does the same as AddRoundKey in the encryption
+ */
+void SubRoundKey(unsigned char *state, unsigned char *roundKey)
+{
+  for (int i = 0; i < 16; i++)
+  {
+    state[i] ^= roundKey[i];
+  }
+}
+
+/* InverseMixColumns uses mul9, mul11, mul13, mul14 look-up tables
+ * Unmixes the columns by reversing the effect of MixColumns in encryption
+ */
+void InverseMixColumns(unsigned char *state)
+{
+  unsigned char tmp[16];
+
+  tmp[0] = (unsigned char)mul14[state[0]] ^ mul11[state[1]] ^ mul13[state[2]] ^ mul9[state[3]];
+  tmp[1] = (unsigned char)mul9[state[0]] ^ mul14[state[1]] ^ mul11[state[2]] ^ mul13[state[3]];
+  tmp[2] = (unsigned char)mul13[state[0]] ^ mul9[state[1]] ^ mul14[state[2]] ^ mul11[state[3]];
+  tmp[3] = (unsigned char)mul11[state[0]] ^ mul13[state[1]] ^ mul9[state[2]] ^ mul14[state[3]];
+
+  tmp[4] = (unsigned char)mul14[state[4]] ^ mul11[state[5]] ^ mul13[state[6]] ^ mul9[state[7]];
+  tmp[5] = (unsigned char)mul9[state[4]] ^ mul14[state[5]] ^ mul11[state[6]] ^ mul13[state[7]];
+  tmp[6] = (unsigned char)mul13[state[4]] ^ mul9[state[5]] ^ mul14[state[6]] ^ mul11[state[7]];
+  tmp[7] = (unsigned char)mul11[state[4]] ^ mul13[state[5]] ^ mul9[state[6]] ^ mul14[state[7]];
+
+  tmp[8] = (unsigned char)mul14[state[8]] ^ mul11[state[9]] ^ mul13[state[10]] ^ mul9[state[11]];
+  tmp[9] = (unsigned char)mul9[state[8]] ^ mul14[state[9]] ^ mul11[state[10]] ^ mul13[state[11]];
+  tmp[10] = (unsigned char)mul13[state[8]] ^ mul9[state[9]] ^ mul14[state[10]] ^ mul11[state[11]];
+  tmp[11] = (unsigned char)mul11[state[8]] ^ mul13[state[9]] ^ mul9[state[10]] ^ mul14[state[11]];
+
+  tmp[12] = (unsigned char)mul14[state[12]] ^ mul11[state[13]] ^ mul13[state[14]] ^ mul9[state[15]];
+  tmp[13] = (unsigned char)mul9[state[12]] ^ mul14[state[13]] ^ mul11[state[14]] ^ mul13[state[15]];
+  tmp[14] = (unsigned char)mul13[state[12]] ^ mul9[state[13]] ^ mul14[state[14]] ^ mul11[state[15]];
+  tmp[15] = (unsigned char)mul11[state[12]] ^ mul13[state[13]] ^ mul9[state[14]] ^ mul14[state[15]];
+
+  for (int i = 0; i < 16; i++)
+  {
+    state[i] = tmp[i];
+  }
+}
+
+// Shifts rows right (rather than left) for decryption
+void ShiftRowsDecryp(unsigned char *state)
+{
+  unsigned char tmp[16];
+
+  /* Column 1 */
+  tmp[0] = state[0];
+  tmp[1] = state[13];
+  tmp[2] = state[10];
+  tmp[3] = state[7];
+
+  /* Column 2 */
+  tmp[4] = state[4];
+  tmp[5] = state[1];
+  tmp[6] = state[14];
+  tmp[7] = state[11];
+
+  /* Column 3 */
+  tmp[8] = state[8];
+  tmp[9] = state[5];
+  tmp[10] = state[2];
+  tmp[11] = state[15];
+
+  /* Column 4 */
+  tmp[12] = state[12];
+  tmp[13] = state[9];
+  tmp[14] = state[6];
+  tmp[15] = state[3];
+
+  for (int i = 0; i < 16; i++)
+  {
+    state[i] = tmp[i];
+  }
+}
+
+/* Perform substitution to each of the 16 bytes
+ * Uses inverse S-box as lookup table
+ */
+void SubBytesDecryp(unsigned char *state)
+{
+  for (int i = 0; i < 16; i++)
+  { // Perform substitution to each of the 16 bytes
+    state[i] = inv_s[state[i]];
+  }
+}
+
+/* Each round operates on 128 bits at a time
+ * The number of rounds is defined in AESDecrypt()
+ * Not surprisingly, the steps are the encryption steps but reversed
+ */
+void RoundDecryp(unsigned char *state, unsigned char *key)
+{
+  SubRoundKey(state, key);
+  InverseMixColumns(state);
+  ShiftRowsDecryp(state);
+  SubBytesDecryp(state);
+}
+
+// Same as Round() but no InverseMixColumns
+void InitialRound(unsigned char *state, unsigned char *key)
+{
+  SubRoundKey(state, key);
+  ShiftRowsDecryp(state);
+  SubBytesDecryp(state);
+}
+
+/* The AES decryption function
+ * Organizes all the decryption steps into one function
+ */
+void AESDecrypt(unsigned char *encryptedMessage, unsigned char *expandedKey, unsigned char *decryptedMessage)
+{
+  unsigned char state[16]; // Stores the first 16 bytes of encrypted message
+
+  for (int i = 0; i < 16; i++)
+  {
+    state[i] = encryptedMessage[i];
+  }
+
+  InitialRound(state, expandedKey + 160);
+
+  int numberOfRounds = 9;
+
+  for (int i = 8; i >= 0; i--)
+  {
+    RoundDecryp(state, expandedKey + (16 * (i + 1)));
+  }
+
+  SubRoundKey(state, expandedKey); // Final round
+
+  // Copy decrypted state to buffer
+  for (int i = 0; i < 16; i++)
+  {
+    decryptedMessage[i] = state[i];
   }
 }
 
@@ -302,10 +589,13 @@ int main(int argc, const char *argv[])
   DNP3Packet packet;
 
   /* Placeholder Message  */
-  uint8_t data[50] = "";
+  uint8_t data[50];
   uint8_t buf[50];
   uint8_t dupe_buf[50];
   /* End Placeholder Message */
+
+  // Encryption key
+  unsigned char key[16] = {0x01, 0x04, 0x02, 0x03, 0x01, 0x03, 0x04, 0x0a, 0x09, 0x0b, 0x07, 0x0f, 0x0c, 0x06, 0x03, 0x00};
 
   /* timeouts start */
   // retry to send your broadcast
@@ -362,22 +652,30 @@ int main(int argc, const char *argv[])
       master_node = true;
       uint8_t datalen = sizeof(data);
       std::string timeStamp = "";
+      char message[50];
       data[0] = RH_FLAGS_RETRY;
 
       // Providing a seed value
       srand((unsigned)time(NULL));
 
       // Generates random data simulating the data from the substation
-      data[2] = 1 + (rand() % 91);
-      data[3] = 1 + (rand() % 101);
-      data[4] = 1 + (rand() % 101);
-      data[5] = 1 + (rand() % 101);
-      data[6] = 0 + (rand() % 2);
-      printf("%d ", data[2]);
-      printf("%d ", data[3]);
-      printf("%d ", data[4]);
-      printf("%d ", data[5]);
-      printf("%d ", data[6]);
+      message[2] = 1 + (rand() % 91);
+      message[3] = 1 + (rand() % 101);
+      message[4] = 1 + (rand() % 101);
+      message[5] = 1 + (rand() % 101);
+      message[6] = 0 + (rand() % 2);
+
+      std::cout << "Message to encrypt:" << std::endl;
+      std::cout << (int)message[2];
+      std::cout << " ";
+      std::cout << (int)message[3];
+      std::cout << " ";
+      std::cout << (int)message[4];
+      std::cout << " ";
+      std::cout << (int)message[5];
+      std::cout << " ";
+      std::cout << (int)message[6];
+      std::cout << " ";
 
       timeStamp = getCurrentDateTime(packetTimeStamp);
 
@@ -385,9 +683,58 @@ int main(int argc, const char *argv[])
 
       for (int i = 7; i <= 25; i++)
       {
-        data[i] = timeStamp[j];
+        message[i] = timeStamp[j];
         j++;
+        std::cout << message[i];
       }
+
+      std::cout << std::endl;
+
+      // Pad message to 16 bytes
+      int originalLen = 25;
+
+      int paddedMessageLen = originalLen;
+
+      if ((paddedMessageLen % 16) != 0)
+      {
+        paddedMessageLen = (paddedMessageLen / 16 + 1) * 16;
+      }
+
+      unsigned char *paddedMessage = new unsigned char[paddedMessageLen];
+      for (int i = 0; i < paddedMessageLen; i++)
+      {
+        if (i >= originalLen)
+        {
+          paddedMessage[i] = 0;
+        }
+        else
+        {
+          paddedMessage[i] = message[i];
+        }
+      }
+
+      unsigned char *encryptedMessage = new unsigned char[paddedMessageLen];
+
+      unsigned char expandedKey[176];
+
+      KeyExpansion(key, expandedKey);
+
+      // Encrypt the message
+      for (int i = 0; i < paddedMessageLen; i += 16)
+      {
+        AESEncrypt(paddedMessage + i, expandedKey, encryptedMessage + i);
+      }
+
+      // Prints the encrypted message in hex form
+      std::cout << "Encrypted message in hex:" << std::endl;
+      for (int i = 0; i < paddedMessageLen; i++)
+      {
+        std::cout << std::hex << (int)encryptedMessage[i];
+        std::cout << " ";
+        data[i] = encryptedMessage[i];
+      }
+
+      std::cout << std::endl;
 
       startTurnTimer = millis();
       if (manager.sendto(data, datalen, RH_BROADCAST_ADDRESS))
@@ -410,6 +757,64 @@ int main(int argc, const char *argv[])
     {
       if (manager.recvfrom(buf, &buflen, &from))
       {
+        int encryptedMessageLen = 32;
+
+        unsigned char *_encryptedMessage = new unsigned char[encryptedMessageLen];
+        for (int i = 0; i < encryptedMessageLen; i++)
+        {
+          _encryptedMessage[i] = (unsigned char)buf[i];
+        }
+
+        unsigned char expandedKeyDecrypt[176];
+
+        KeyExpansion(key, expandedKeyDecrypt);
+
+        unsigned char *decryptedMessage = new unsigned char[encryptedMessageLen];
+
+        // Decrypt the message
+        for (int i = 0; i < encryptedMessageLen; i += 16)
+        {
+          AESDecrypt(_encryptedMessage + i, expandedKeyDecrypt, decryptedMessage + i);
+        }
+
+        int decryptMessageLen = 25;
+
+        // Prints the decrypted message in hex form
+        std::cout << "Decrypted message in hex:" << std::endl;
+        for (int i = 0; i < decryptMessageLen; i++)
+        {
+          std::cout << std::hex << (int)decryptedMessage[i];
+          std::cout << " ";
+        }
+
+        std::cout << std::endl;
+
+        // Prints the decrypted message
+        std::cout << "Decrypted message:" << std::endl;
+
+        printf("%d", decryptedMessage[2]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[3]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[4]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[5]);
+        std::cout << " ";
+        printf("%d", decryptedMessage[6]);
+        std::cout << " ";
+
+        for (int i = 7; i < decryptMessageLen; i++)
+        {
+          std::cout << decryptedMessage[i];
+        }
+
+        std::cout << std::endl;
+
+        for (int i = 0; i < decryptMessageLen; i++)
+        {
+          buf[i] = decryptedMessage[i];
+        }
+
         if ((int)buf[1] == THIS_NODE_ADDRESS) // If acknowledgement was directed towards this node, print it, verify its integrity and store it
         {
           Serial.print("Got acknowledgement from : 0x");
@@ -499,8 +904,66 @@ int main(int argc, const char *argv[])
         int sleepTime = rand() % 4;
         sleep(sleepTime);
         printf("rand %d \n", sleepTime);
+        char message[50];
         buf[0] = RH_FLAGS_ACK;
         buf[1] = from;
+
+        std::cout << "Message to encrypt:" << std::endl;
+
+        for (int i = 0; i <= 25; i++)
+        {
+          message[i] = buf[i];
+          std::cout << message[i];
+        }
+
+        std::cout << std::endl;
+
+        // Pad message to 16 bytes
+        int originalLen = 25;
+
+        int paddedMessageLen = originalLen;
+
+        if ((paddedMessageLen % 16) != 0)
+        {
+          paddedMessageLen = (paddedMessageLen / 16 + 1) * 16;
+        }
+
+        unsigned char *paddedMessage = new unsigned char[paddedMessageLen];
+        for (int i = 0; i < paddedMessageLen; i++)
+        {
+          if (i >= originalLen)
+          {
+            paddedMessage[i] = 0;
+          }
+          else
+          {
+            paddedMessage[i] = message[i];
+          }
+        }
+
+        unsigned char *encryptedMessage = new unsigned char[paddedMessageLen];
+
+        unsigned char expandedKey[176];
+
+        KeyExpansion(key, expandedKey);
+
+        // Encrypt the message
+        for (int i = 0; i < paddedMessageLen; i += 16)
+        {
+          AESEncrypt(paddedMessage + i, expandedKey, encryptedMessage + i);
+        }
+
+        // Prints the encrypted message in hex form
+        std::cout << "Encrypted message in hex:" << std::endl;
+        for (int i = 0; i < paddedMessageLen; i++)
+        {
+          std::cout << std::hex << (int)encryptedMessage[i];
+          std::cout << " ";
+          buf[i] = encryptedMessage[i];
+        }
+
+        std::cout << std::endl;
+
         if (manager.sendto(buf, buflen, RH_BROADCAST_ADDRESS))
         {
           printf("Sending acknowledgement \n");
@@ -569,6 +1032,64 @@ int main(int argc, const char *argv[])
         else
         {
           last_broadcast_received_timer = millis();
+
+          int encryptedMessageLen = 32;
+
+          unsigned char *_encryptedMessage = new unsigned char[encryptedMessageLen];
+          for (int i = 0; i < encryptedMessageLen; i++)
+          {
+            _encryptedMessage[i] = (unsigned char)buf[i];
+          }
+
+          unsigned char expandedKeyDecrypt[176];
+
+          KeyExpansion(key, expandedKeyDecrypt);
+
+          unsigned char *decryptedMessage = new unsigned char[encryptedMessageLen];
+
+          // Decrypt the message
+          for (int i = 0; i < encryptedMessageLen; i += 16)
+          {
+            AESDecrypt(_encryptedMessage + i, expandedKeyDecrypt, decryptedMessage + i);
+          }
+
+          int decryptMessageLen = 25;
+
+          // Prints the decrypted message in hex form
+          std::cout << "Decrypted message in hex:" << std::endl;
+          for (int i = 0; i < decryptMessageLen; i++)
+          {
+            std::cout << std::hex << (int)decryptedMessage[i];
+            std::cout << " ";
+          }
+
+          std::cout << std::endl;
+
+          // Prints the decrypted message
+          std::cout << "Decrypted message:" << std::endl;
+
+          printf("%d", decryptedMessage[2]);
+          std::cout << " ";
+          printf("%d", decryptedMessage[3]);
+          std::cout << " ";
+          printf("%d", decryptedMessage[4]);
+          std::cout << " ";
+          printf("%d", decryptedMessage[5]);
+          std::cout << " ";
+          printf("%d", decryptedMessage[6]);
+          std::cout << " ";
+
+          for (int i = 7; i < decryptMessageLen; i++)
+          {
+            std::cout << decryptedMessage[i];
+          }
+
+          std::cout << std::endl;
+
+          for (int i = 0; i < decryptMessageLen; i++)
+          {
+            buf[i] = decryptedMessage[i];
+          }
 
           // timer since last broadcast received
           if ((int)buf[0] == RH_FLAGS_RETRY)
@@ -1002,6 +1523,61 @@ int main(int argc, const char *argv[])
       sleep(2);
       if (!two_nodes)
       {
+        std::cout << "Message to encrypt:" << std::endl;
+
+        for (int i = 0; i <= 25; i++)
+        {
+          message[i] = dupe_buf[i];
+          std::cout << message[i];
+        }
+
+        std::cout << std::endl;
+
+        // Pad message to 16 bytes
+        int originalLen = 25;
+
+        int paddedMessageLen = originalLen;
+
+        if ((paddedMessageLen % 16) != 0)
+        {
+          paddedMessageLen = (paddedMessageLen / 16 + 1) * 16;
+        }
+
+        unsigned char *paddedMessage = new unsigned char[paddedMessageLen];
+        for (int i = 0; i < paddedMessageLen; i++)
+        {
+          if (i >= originalLen)
+          {
+            paddedMessage[i] = 0;
+          }
+          else
+          {
+            paddedMessage[i] = message[i];
+          }
+        }
+
+        unsigned char *encryptedMessage = new unsigned char[paddedMessageLen];
+
+        unsigned char expandedKey[176];
+
+        KeyExpansion(key, expandedKey);
+
+        // Encrypt the message
+        for (int i = 0; i < paddedMessageLen; i += 16)
+        {
+          AESEncrypt(paddedMessage + i, expandedKey, encryptedMessage + i);
+        }
+
+        // Prints the encrypted message in hex form
+        std::cout << "Encrypted message in hex:" << std::endl;
+        for (int i = 0; i < paddedMessageLen; i++)
+        {
+          std::cout << std::hex << (int)encryptedMessage[i];
+          std::cout << " ";
+          dupe_buf[i] = encryptedMessage[i];
+        }
+
+        std::cout << std::endl;
         if (manager.sendto(dupe_buf, dupe_buflen, RH_BROADCAST_ADDRESS))
         {
           printf("Sending broadcast... \n");
