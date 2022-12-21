@@ -903,9 +903,9 @@ int main(int argc, const char *argv[])
       // If broadcast received was a normal broadcast, send a normal acknowledgement
       else
       {
-        // srand(THIS_NODE_ADDRESS);
+        srand((unsigned) rand());
         // random delay so not all nodes send an acknowledgement at the same time
-        int sleepTime = rand() % 4;
+        int sleepTime = 0 + (rand() % 6);
         sleep(sleepTime);
         printf("rand %d \n", sleepTime);
         buf[0] = RH_FLAGS_ACK;
@@ -1353,9 +1353,9 @@ int main(int argc, const char *argv[])
       }
       Serial.println((char *)buf);
       uint8_t datalen = sizeof(data);
-      // srand(THIS_NODE_ADDRESS);
+      srand((unsigned) rand());
       // random delay so not all nodes send an acknowledgement at the same time
-      int sleepTime = rand() % 4;
+      int sleepTime = 0 + (rand() % 6);
       sleep(sleepTime);
       printf("rand %d \n", sleepTime);
       manager.sendto(data, datalen, RH_BROADCAST_ADDRESS);
