@@ -903,7 +903,7 @@ int main(int argc, const char *argv[])
       // If broadcast received was a normal broadcast, send a normal acknowledgement
       else
       {
-        srand(THIS_NODE_ADDRESS);
+        // srand(THIS_NODE_ADDRESS);
         // random delay so not all nodes send an acknowledgement at the same time
         int sleepTime = rand() % 4;
         sleep(sleepTime);
@@ -978,10 +978,10 @@ int main(int argc, const char *argv[])
         else
         {
           // Save data received to be rebroadcasted in state 13
-          for (int i = 0; i <= 32; i++)
-          {
-            dupe_buf[j] = buf[i + 2];
-          }
+          // for (int i = 0; i <= 32; i++)
+          // {
+          //   dupe_buf[i] = buf[i + 2];
+          // }
 
           last_broadcast_received_timer = millis();
 
@@ -1353,7 +1353,7 @@ int main(int argc, const char *argv[])
       }
       Serial.println((char *)buf);
       uint8_t datalen = sizeof(data);
-      srand(THIS_NODE_ADDRESS);
+      // srand(THIS_NODE_ADDRESS);
       // random delay so not all nodes send an acknowledgement at the same time
       int sleepTime = rand() % 4;
       sleep(sleepTime);
