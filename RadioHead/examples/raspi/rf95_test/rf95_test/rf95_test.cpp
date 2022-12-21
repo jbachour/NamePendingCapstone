@@ -124,7 +124,7 @@ DNP3Packet DNP3PacketGenerator(std::array<std::string, 10> packetContent)
   packet.substation_component_status = packetContent[4];
 
   // DNP3Packet timestamp
-  packet.time_stamp = getCurrentDateTime(packetTimeStamp);
+  packet.time_stamp = packetContent[5];
 
   return packet;
 }
@@ -592,6 +592,7 @@ int main(int argc, const char *argv[])
   uint8_t data[50];
   uint8_t buf[50];
   uint8_t dupe_buf[50];
+  uint8_t turn[10];
   /* End Placeholder Message */
 
   // Encryption key
@@ -903,7 +904,7 @@ int main(int argc, const char *argv[])
       // If broadcast received was a normal broadcast, send a normal acknowledgement
       else
       {
-        srand((unsigned) rand());
+        srand((unsigned)rand());
         // random delay so not all nodes send an acknowledgement at the same time
         int sleepTime = 0 + (rand() % 6);
         sleep(sleepTime);
@@ -978,169 +979,181 @@ int main(int argc, const char *argv[])
         else
         {
           // Save data received to be rebroadcasted in state 13
-          // for (int i = 0; i <= 32; i++)
-          // {
-          //   dupe_buf[i] = buf[i + 2];
-          // }
-
-          last_broadcast_received_timer = millis();
-
-          uint8_t decrypMessage[50];
-
-          int encryptedMessageLen = 32;
-
-          unsigned char *_encryptedMessage = new unsigned char[encryptedMessageLen];
-          for (int i = 0; i < encryptedMessageLen; i++)
+          if (RH_FLAGS_RETRY == (int)buf[0])
           {
-            _encryptedMessage[i] = (unsigned char)buf[i + 2];
+            for (int i = 2; i <= buflen; i++)
+            {
+              dupe_buf[i] = buf[i];
+              std::cout << std::hex << (int)dupe_buf[i];
+              std::cout << " ";
+              std::cout << std::hex << (int)buf[i];
+              std::cout << " ";
+              std::cout << std::endl;
+            }
           }
 
-          unsigned char expandedKeyDecrypt[176];
-
-          KeyExpansion(key, expandedKeyDecrypt);
-
-          unsigned char *decryptedMessage = new unsigned char[encryptedMessageLen];
-
-          // Decrypt the message
-          for (int i = 0; i < encryptedMessageLen; i += 16)
+          if (buf[2] != 0)
           {
-            AESDecrypt(_encryptedMessage + i, expandedKeyDecrypt, decryptedMessage + i);
-          }
 
-          int decryptMessageLen = 24;
+            last_broadcast_received_timer = millis();
 
-          // Prints the decrypted message in hex form
-          std::cout << "Decrypted message in hex:" << std::endl;
-          for (int i = 0; i < decryptMessageLen; i++)
-          {
-            std::cout << std::hex << (int)decryptedMessage[i];
+            uint8_t decrypMessage[50];
+
+            int encryptedMessageLen = 32;
+
+            unsigned char *_encryptedMessage = new unsigned char[encryptedMessageLen];
+            for (int i = 0; i < encryptedMessageLen; i++)
+            {
+              _encryptedMessage[i] = (unsigned char)buf[i + 2];
+            }
+
+            unsigned char expandedKeyDecrypt[176];
+
+            KeyExpansion(key, expandedKeyDecrypt);
+
+            unsigned char *decryptedMessage = new unsigned char[encryptedMessageLen];
+
+            // Decrypt the message
+            for (int i = 0; i < encryptedMessageLen; i += 16)
+            {
+              AESDecrypt(_encryptedMessage + i, expandedKeyDecrypt, decryptedMessage + i);
+            }
+
+            int decryptMessageLen = 24;
+
+            // Prints the decrypted message in hex form
+            std::cout << "Decrypted message in hex:" << std::endl;
+            for (int i = 0; i < decryptMessageLen; i++)
+            {
+              std::cout << std::hex << (int)decryptedMessage[i];
+              std::cout << " ";
+            }
+
+            std::cout << std::endl;
+
+            // Prints the decrypted message
+            std::cout << "Decrypted message:" << std::endl;
+
+            printf("%d", decryptedMessage[0]);
             std::cout << " ";
-          }
+            printf("%d", decryptedMessage[1]);
+            std::cout << " ";
+            printf("%d", decryptedMessage[2]);
+            std::cout << " ";
+            printf("%d", decryptedMessage[3]);
+            std::cout << " ";
+            printf("%d", decryptedMessage[4]);
+            std::cout << " ";
 
-          std::cout << std::endl;
+            for (int i = 5; i < decryptMessageLen; i++)
+            {
+              std::cout << decryptedMessage[i];
+            }
 
-          // Prints the decrypted message
-          std::cout << "Decrypted message:" << std::endl;
+            std::cout << std::endl;
 
-          printf("%d", decryptedMessage[0]);
-          std::cout << " ";
-          printf("%d", decryptedMessage[1]);
-          std::cout << " ";
-          printf("%d", decryptedMessage[2]);
-          std::cout << " ";
-          printf("%d", decryptedMessage[3]);
-          std::cout << " ";
-          printf("%d", decryptedMessage[4]);
-          std::cout << " ";
+            for (int i = 0; i < decryptMessageLen; i++)
+            {
+              decrypMessage[i] = decryptedMessage[i];
+            }
 
-          for (int i = 5; i < decryptMessageLen; i++)
-          {
-            std::cout << decryptedMessage[i];
-          }
+            // timer since last broadcast received
+            if ((int)buf[0] == RH_FLAGS_RETRY)
+            {
+              state = 3;
+            }
+            rf95.waitAvailableTimeout(1000);
 
-          std::cout << std::endl;
+            std::string timeStamp = "";
+            char temp[50] = "";
+            int j = 0;
 
-          for (int i = 0; i < decryptMessageLen; i++)
-          {
-            decrypMessage[i] = decryptedMessage[i];
-          }
+            // extract data
+            for (int i = 5; i <= 24; i++)
+            {
+              temp[j] = decryptedMessage[i];
+              j++;
+            }
 
-          // timer since last broadcast received
-          if ((int)buf[0] == RH_FLAGS_RETRY)
-          {
-            state = 3;
-          }
-          rf95.waitAvailableTimeout(1000);
+            timeStamp = temp;
 
-          std::string timeStamp = "";
-          char temp[50] = "";
-          int j = 0;
+            packetContent = packetReader(decrypMessage, timeStamp);
 
-          // extract data
-          for (int i = 5; i <= 24; i++)
-          {
-            temp[j] = decryptedMessage[i];
-            j++;
-          }
+            // Creates the name from the file according to the id of the node that send the packet
+            if ((int)from == NODE1_ADDRESS)
+            {
+              fileName = "Node1 Data ";
+            }
+            else if ((int)from == NODE2_ADDRESS)
+            {
+              fileName = "Node2 Data ";
+            }
+            else if ((int)from == THIS_NODE_ADDRESS)
+            {
+              fileName = "Node3 Data ";
+            }
+            else if ((int)from == NODE4_ADDRESS)
+            {
+              fileName = "Node4 Data ";
+            }
+            else if ((int)from == NODE5_ADDRESS)
+            {
+              fileName = "Node5 Data ";
+            }
+            else if ((int)from == NODE6_ADDRESS)
+            {
+              fileName = "Node6 Data ";
+            }
 
-          timeStamp = temp;
-          
-          packetContent = packetReader(decrypMessage, timeStamp);
+            std::ifstream file;
 
-          // Creates the name from the file according to the id of the node that send the packet
-          if ((int)from == NODE1_ADDRESS)
-          {
-            fileName = "Node1 Data ";
-          }
-          else if ((int)from == NODE2_ADDRESS)
-          {
-            fileName = "Node2 Data ";
-          }
-          else if ((int)from == THIS_NODE_ADDRESS)
-          {
-            fileName = "Node3 Data ";
-          }
-          else if ((int)from == NODE4_ADDRESS)
-          {
-            fileName = "Node4 Data ";
-          }
-          else if ((int)from == NODE5_ADDRESS)
-          {
-            fileName = "Node5 Data ";
-          }
-          else if ((int)from == NODE6_ADDRESS)
-          {
-            fileName = "Node6 Data ";
-          }
+            // Concatenates the the path, fileName, timestamp and the type together into the variable fileDirectory.
+            std::string fileDirectory = path + fileName + timeStamp + ".csv";
 
-          std::ifstream file;
+            // Creates the nodes data file. If the file exist it will open it.
+            file.open(fileDirectory);
 
-          // Concatenates the the path, fileName, timestamp and the type together into the variable fileDirectory.
-          std::string fileDirectory = path + fileName + timeStamp + ".csv";
+            // If the file was able to be open it will write into the file else it will not write into the file.
+            // After the file was written it will close the file and chage the variable fileWasCreated to true.
+            if (file.is_open())
+            {
+              file_exists = true;
+              file.close();
+            }
 
-          // Creates the nodes data file. If the file exist it will open it.
-          file.open(fileDirectory);
+            if (file_exists || timeStamp == "")
+            {
+              std::cout << "File already exists" << std::endl;
+              file_exists = false;
+            }
+            else
+            {
+              Serial.print("Got broadcast from : 0x");
+              Serial.print(from);
+              Serial.print(": ");
+              Serial.println((char *)buf);
 
-          // If the file was able to be open it will write into the file else it will not write into the file.
-          // After the file was written it will close the file and chage the variable fileWasCreated to true.
-          if (file.is_open())
-          {
-            file_exists = true;
-            file.close();
-          }
+              fileWriter(path, fileName, packetContent);
 
-          if (file_exists || timeStamp == "")
-          {
-            std::cout << "File already exists" << std::endl;
-            file_exists = false;
-          }
-          else
-          {
-            Serial.print("Got broadcast from : 0x");
-            Serial.print(from);
-            Serial.print(": ");
-            Serial.println((char *)buf);
+              packet = DNP3PacketGenerator(packetContent);
 
-            fileWriter(path, fileName, packetContent);
+              // Prints to terminal the content of the DNP3Packet
+              std::cout << "DNP3Packet \n";
+              std::cout << packet.sync << "\n";
+              std::cout << packet.length << "\n";
+              std::cout << packet.link_control << "\n";
+              std::cout << packet.destination_address << "\n";
+              std::cout << packet.source_address << "\n";
+              std::cout << packet.crc << "\n";
 
-            packet = DNP3PacketGenerator(packetContent);
+              std::cout << packet.phase_angle << "\n";
+              std::cout << packet.phase_on_each_bus << "\n";
+              std::cout << packet.power_flow_on_each_transmission_line << "\n";
+              std::cout << packet.substation_load << "\n";
+              std::cout << packet.substation_component_status << "\n";
 
-            // Prints to terminal the content of the DNP3Packet
-            std::cout << "DNP3Packet \n";
-            std::cout << packet.sync << "\n";
-            std::cout << packet.length << "\n";
-            std::cout << packet.link_control << "\n";
-            std::cout << packet.destination_address << "\n";
-            std::cout << packet.source_address << "\n";
-            std::cout << packet.crc << "\n";
-
-            std::cout << packet.phase_angle << "\n";
-            std::cout << packet.phase_on_each_bus << "\n";
-            std::cout << packet.power_flow_on_each_transmission_line << "\n";
-            std::cout << packet.substation_load << "\n";
-            std::cout << packet.substation_component_status << "\n";
-
-            std::cout << packet.time_stamp << "\n";
+              std::cout << packet.time_stamp << "\n";
+            }
           }
         }
       }
@@ -1167,7 +1180,7 @@ int main(int argc, const char *argv[])
     else if (state == 5) // send turn broadcast
     {
       sleep(2);
-      uint8_t turn[10];
+      turn[10];
       uint8_t turnlen = sizeof(turn);
       turn[0] = NSK;
       std::map<int, bool>::iterator itr;
@@ -1353,7 +1366,7 @@ int main(int argc, const char *argv[])
       }
       Serial.println((char *)buf);
       uint8_t datalen = sizeof(data);
-      srand((unsigned) rand());
+      srand((unsigned)rand());
       // random delay so not all nodes send an acknowledgement at the same time
       int sleepTime = 0 + (rand() % 6);
       sleep(sleepTime);
@@ -1413,7 +1426,7 @@ int main(int argc, const char *argv[])
       if (manager.recvfrom(buf, &buflen, &from))
       {
         printf("recvd something\n");
-        if (master_node && ((int)buf[0] == RH_FLAGS_ACK))
+        if (master_node && ((int)buf[0] == RH_FLAGS_ACK || from == (int)turn[1]))
         {
           printf("recv node turn ack start\n");
           rf95.waitAvailableTimeout(2000);
