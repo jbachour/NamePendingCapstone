@@ -130,11 +130,11 @@ bool RH_RF95::init()
 
     // Set up default configuration
     // No Sync Words in LORA mode.
-    setModemConfig(Bw125Cr45Sf128); // Radio default
+    setModemConfig(Bw500Cr45Sf128); // Radio default
 //    setModemConfig(Bw125Cr48Sf4096); // slow and reliable?
     setPreambleLength(8); // Default is 8
     // An innocuous ISM frequency, same as RF22's
-    setFrequency(434.0);
+    setFrequency(915.0);
     // Lowish power
     setTxPower(13);
 
@@ -223,10 +223,10 @@ void RH_RF95::handleInterrupt()
 	    _lastRssi -= 164;
 	    
 	// We have received a message.
-    printf("We have received a message1\n");
+    //printf("We have received a message1\n");
 	validateRxBuf(); 
 	if (_rxBufValid)
-        printf("We have received a message\n");
+        //printf("We have received a message\n");
 	    setModeIdle(); // Got one 
     }
     else if (_mode == RHModeTx && irq_flags & RH_RF95_TX_DONE)
@@ -345,7 +345,7 @@ bool RH_RF95::send(const uint8_t* data, uint8_t len)
     setModeIdle();
 
     if (!waitCAD()) {
-     Serial.println("return false");
+     //Serial.println("return false");
 	return false;  // Check channel activity
     }
     // Position at the beginning of the FIFO
@@ -362,7 +362,6 @@ bool RH_RF95::send(const uint8_t* data, uint8_t len)
     RH_MUTEX_LOCK(lock); // Multithreading support
     setModeTx(); // Start the transmitter
     RH_MUTEX_UNLOCK(lock);
-    Serial.println("send completed");
     // when Tx is done, interruptHandler will fire and radio mode will return to STANDBY
     return true;
 }
