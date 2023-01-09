@@ -656,7 +656,8 @@ int main(int argc, const char *argv[])
       uint8_t datalen = sizeof(data);
       std::string timeStamp = "";
       data[0] = RH_FLAGS_RETRY;
-
+      // 
+      data[1] = THIS_NODE_ADDRESS;
       // Providing a seed value
       srand((unsigned)time(NULL));
 
@@ -1080,27 +1081,28 @@ int main(int argc, const char *argv[])
             packetContent = packetReader(decrypMessage, timeStamp);
 
             // Creates the name from the file according to the id of the node that send the packet
-            if ((int)from == NODE1_ADDRESS)
+            //add: or bu[1] == node1_address para la comparacaion de los broadcast de state 13
+            if ((int)buf[1] == NODE1_ADDRESS)
             {
               fileName = "Node1 Data ";
             }
-            else if ((int)from == NODE2_ADDRESS)
+            else if ((int)buf[1] == NODE2_ADDRESS)
             {
               fileName = "Node2 Data ";
             }
-            else if ((int)from == THIS_NODE_ADDRESS)
+            else if ((int)buf[1] == THIS_NODE_ADDRESS)
             {
               fileName = "Node3 Data ";
             }
-            else if ((int)from == NODE4_ADDRESS)
+            else if ((int)buf[1] == NODE4_ADDRESS)
             {
               fileName = "Node4 Data ";
             }
-            else if ((int)from == NODE5_ADDRESS)
+            else if ((int)buf[1] == NODE5_ADDRESS)
             {
               fileName = "Node5 Data ";
             }
-            else if ((int)from == NODE6_ADDRESS)
+            else if ((int)buf[1] == NODE6_ADDRESS)
             {
               fileName = "Node6 Data ";
             }
