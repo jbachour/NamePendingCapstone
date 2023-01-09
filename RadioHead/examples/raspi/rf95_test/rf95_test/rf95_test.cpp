@@ -33,9 +33,9 @@ void sig_handler(int sig);
 
 // Network of 6 nodes
 std::map<int, bool> node_status_map;
-#define NODE1_ADDRESS 11
+#define THIS_NODE_ADDRESS 11
 #define NODE2_ADDRESS 22
-#define THIS_NODE_ADDRESS 33
+#define NODE3_ADDRESS 33
 #define NODE4_ADDRESS 44
 #define NODE5_ADDRESS 55
 #define NODE6_ADDRESS 66
@@ -53,7 +53,7 @@ RHMesh manager(rf95, THIS_NODE_ADDRESS);
 int flag = 0;
 
 // File writer global variables
-std::string path = "/media/node3/node3ssd/Node Data/";
+std::string path = "/media/node1/node1ssd/Node Data/";
 std::string fileName = "";
 std::string packetTimeStamp = "packetTimeStamp";
 std::string logTimeStamp = "logFileTimeStamp";
@@ -577,9 +577,9 @@ int main(int argc, const char *argv[])
   /* End Manager/Driver settings code */
 
   /*Node map status initialise*/
-  node_status_map.insert(std::pair<int, bool>(NODE1_ADDRESS, false));
-  node_status_map.insert(std::pair<int, bool>(NODE2_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(THIS_NODE_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE2_ADDRESS, false));
+  node_status_map.insert(std::pair<int, bool>(NODE3_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE4_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE5_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE6_ADDRESS, false));
@@ -656,7 +656,8 @@ int main(int argc, const char *argv[])
       uint8_t datalen = sizeof(data);
       std::string timeStamp = "";
       data[0] = RH_FLAGS_RETRY;
-
+      // 
+      data[1] = THIS_NODE_ADDRESS;
       // Providing a seed value
       srand((unsigned)time(NULL));
 
@@ -906,7 +907,7 @@ int main(int argc, const char *argv[])
       {
         srand((unsigned)rand());
         // random delay so not all nodes send an acknowledgement at the same time
-        int sleepTime = 0 + (rand() % 6);
+        int sleepTime = (THIS_NODE_ADDRESS + rand()) % 6;
         sleep(sleepTime);
         printf("rand %d \n", sleepTime);
         buf[0] = RH_FLAGS_ACK;
@@ -990,6 +991,7 @@ int main(int argc, const char *argv[])
               std::cout << " ";
               std::cout << std::endl;
             }
+            dupe_buf[1] = buf[1];
           }
 
           if (buf[2] != 0)
@@ -1080,27 +1082,28 @@ int main(int argc, const char *argv[])
             packetContent = packetReader(decrypMessage, timeStamp);
 
             // Creates the name from the file according to the id of the node that send the packet
-            if ((int)from == NODE1_ADDRESS)
+            //add: or bu[1] == node1_address para la comparacaion de los broadcast de state 13
+            if ((int)buf[1] == THIS_NODE_ADDRESS)
             {
               fileName = "Node1 Data ";
             }
-            else if ((int)from == NODE2_ADDRESS)
+            else if ((int)buf[1] == NODE2_ADDRESS)
             {
               fileName = "Node2 Data ";
             }
-            else if ((int)from == THIS_NODE_ADDRESS)
+            else if ((int)buf[1] == NODE3_ADDRESS)
             {
               fileName = "Node3 Data ";
             }
-            else if ((int)from == NODE4_ADDRESS)
+            else if ((int)buf[1] == NODE4_ADDRESS)
             {
               fileName = "Node4 Data ";
             }
-            else if ((int)from == NODE5_ADDRESS)
+            else if ((int)buf[1] == NODE5_ADDRESS)
             {
               fileName = "Node5 Data ";
             }
-            else if ((int)from == NODE6_ADDRESS)
+            else if ((int)buf[1] == NODE6_ADDRESS)
             {
               fileName = "Node6 Data ";
             }
@@ -1185,10 +1188,32 @@ int main(int argc, const char *argv[])
       turn[0] = NSK;
       std::map<int, bool>::iterator itr;
       printf("I will send the turn now\n");
-      if ((itr = node_status_map.find(NODE4_ADDRESS))->second == true)
+      if ((itr = node_status_map.find(NODE2_ADDRESS))->second == true)
+      {
+        turn[1] = NODE2_ADDRESS;
+        printf("node 2's turn\n");
+        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
+        {
+          printf("sent turn\n");
+          state = 12;
+          rf95.setModeRx();
+        }
+      }
+      else if ((itr = node_status_map.find(NODE3_ADDRESS))->second == true)
+      {
+        turn[1] = NODE3_ADDRESS;
+        printf("node 3's turn\n");
+        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
+        {
+          printf("sent turn\n");
+          state = 12;
+          rf95.setModeRx();
+        }
+      }
+      else if ((itr = node_status_map.find(NODE4_ADDRESS))->second == true)
       {
         turn[1] = NODE4_ADDRESS;
-        printf("node 3's turn\n");
+        printf("node 4's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
@@ -1199,7 +1224,7 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE5_ADDRESS))->second == true)
       {
         turn[1] = NODE5_ADDRESS;
-        printf("node 4's turn\n");
+        printf("node 5's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
@@ -1210,29 +1235,7 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE6_ADDRESS))->second == true)
       {
         turn[1] = NODE6_ADDRESS;
-        printf("node 5's turn\n");
-        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
-        {
-          printf("sent turn\n");
-          state = 12;
-          rf95.setModeRx();
-        }
-      }
-      else if ((itr = node_status_map.find(NODE1_ADDRESS))->second == true)
-      {
-        turn[1] = NODE1_ADDRESS;
-        printf("node 6's turn\n");
-        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
-        {
-          printf("sent turn\n");
-          state = 12;
-          rf95.setModeRx();
-        }
-      }
-      else if ((itr = node_status_map.find(NODE2_ADDRESS))->second == true)
-      {
-        turn[1] = NODE2_ADDRESS;
-        printf("node1 turn\n");
+        printf("node6 turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
@@ -1368,7 +1371,7 @@ int main(int argc, const char *argv[])
       uint8_t datalen = sizeof(data);
       srand((unsigned)rand());
       // random delay so not all nodes send an acknowledgement at the same time
-      int sleepTime = 0 + (rand() % 6);
+      int sleepTime = (THIS_NODE_ADDRESS + rand()) % 6;
       sleep(sleepTime);
       printf("rand %d \n", sleepTime);
       manager.sendto(data, datalen, RH_BROADCAST_ADDRESS);
