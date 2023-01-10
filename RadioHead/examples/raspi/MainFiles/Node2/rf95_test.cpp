@@ -33,8 +33,8 @@ void sig_handler(int sig);
 
 // Network of 6 nodes
 std::map<int, bool> node_status_map;
-#define THIS_NODE_ADDRESS 11
-#define NODE2_ADDRESS 22
+#define NODE1_ADDRESS 11
+#define THIS_NODE_ADDRESS 22
 #define NODE3_ADDRESS 33
 #define NODE4_ADDRESS 44
 #define NODE5_ADDRESS 55
@@ -53,7 +53,7 @@ RHMesh manager(rf95, THIS_NODE_ADDRESS);
 int flag = 0;
 
 // File writer global variables
-std::string path = "/media/node1/node1ssd/Node Data/";
+std::string path = "/media/node2/node2ssd/Node Data/";
 std::string fileName = "";
 std::string packetTimeStamp = "packetTimeStamp";
 std::string logTimeStamp = "logFileTimeStamp";
@@ -572,8 +572,8 @@ int main(int argc, const char *argv[])
   /* End Manager/Driver settings code */
 
   /*Node map status initialise*/
+  node_status_map.insert(std::pair<int, bool>(NODE1_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(THIS_NODE_ADDRESS, false));
-  node_status_map.insert(std::pair<int, bool>(NODE2_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE3_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE4_ADDRESS, false));
   node_status_map.insert(std::pair<int, bool>(NODE5_ADDRESS, false));
@@ -853,7 +853,7 @@ int main(int argc, const char *argv[])
           // If ack is the same as the message you send save your own data
           if (len == 24)
           {
-            fileName = "Node1 Data ";
+            fileName = "Node2 Data ";
             packetContent = packetReader(decrypMessage, timeStamp);
             fileWriter(path, fileName, packetContent);
           }
@@ -1075,11 +1075,11 @@ int main(int argc, const char *argv[])
 
             // Creates the name from the file according to the id of the node that send the packet
             //add: or bu[1] == node1_address para la comparacaion de los broadcast de state 13
-            if ((int)buf[1] == THIS_NODE_ADDRESS)
+            if ((int)buf[1] == NODE1_ADDRESS)
             {
               fileName = "Node1 Data ";
             }
-            else if ((int)buf[1] == NODE2_ADDRESS)
+            else if ((int)buf[1] == THIS_NODE_ADDRESS)
             {
               fileName = "Node2 Data ";
             }
@@ -1178,18 +1178,7 @@ int main(int argc, const char *argv[])
       turn[0] = NSK;
       std::map<int, bool>::iterator itr;
       // printf("I will send the turn now\n");
-      if ((itr = node_status_map.find(NODE2_ADDRESS))->second == true)
-      {
-        turn[1] = NODE2_ADDRESS;
-        printf("node 2's turn\n");
-        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
-        {
-          printf("sent turn\n");
-          state = 12;
-          rf95.setModeRx();
-        }
-      }
-      else if ((itr = node_status_map.find(NODE3_ADDRESS))->second == true)
+      if ((itr = node_status_map.find(NODE3_ADDRESS))->second == true)
       {
         turn[1] = NODE3_ADDRESS;
         printf("node 3's turn\n");
@@ -1225,7 +1214,18 @@ int main(int argc, const char *argv[])
       else if ((itr = node_status_map.find(NODE6_ADDRESS))->second == true)
       {
         turn[1] = NODE6_ADDRESS;
-        printf("node6 turn\n");
+        printf("node 6's turn\n");
+        if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
+        {
+          printf("sent turn\n");
+          state = 12;
+          rf95.setModeRx();
+        }
+      }
+      else if ((itr = node_status_map.find(NODE1_ADDRESS))->second == true)
+      {
+        turn[1] = NODE1_ADDRESS;
+        printf("node 1's turn\n");
         if (manager.sendto(turn, turnlen, RH_BROADCAST_ADDRESS))
         {
           printf("sent turn\n");
